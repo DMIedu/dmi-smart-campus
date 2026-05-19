@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register Student — DMI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    
+    .back-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .back-link:hover { color: var(--dmi-primary); }
+    
+    .page-title {
+      font-family: var(--font-display);
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.25rem;
+    }
+    
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 0.9375rem;
+      margin-bottom: 2rem;
+    }
+    
+    .form-section {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-section-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    
+    .form-grid-full { grid-column: 1 / -1; }
+    
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+    
+    .field { display: flex; flex-direction: column; }
+    
+    .field .label {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .required { color: var(--dmi-danger); }
+    
+    .field-hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+    
+    .submit-bar {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      margin-top: 0.5rem;
+    }
+    
+    @media (max-width: 600px) {
+      .submit-bar { flex-direction: column-reverse; }
+      .submit-bar .btn { width: 100%; }
+    }
+    
+    /* Success modal */
+    .success-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .success-overlay.active { display: flex; }
+    
+    .success-card {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 2.5rem 2rem 2rem;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 25px 60px -15px rgba(0,0,0,0.3);
+      animation: pop-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    
+    @keyframes pop-in {
+      from { transform: scale(0.85); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    
+    .success-icon {
+      width: 64px;
+      height: 64px;
+      background: #d1fae5;
+      color: #065f46;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin: 0 auto 1rem;
+    }
+    
+    .success-title {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 0.25rem;
+    }
+    
+    .success-subtitle {
+      color: var(--text-muted);
+      text-align: center;
+      font-size: 0.9375rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .creds-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .creds-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px dashed var(--border);
+    }
+    .creds-row:last-child { border-bottom: none; }
+    
+    .creds-label {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    
+    .creds-value {
+      font-family: var(--font-mono);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--text);
+      background: var(--surface);
+      padding: 0.25rem 0.625rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    
+    .success-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+    .success-actions .btn { flex: 1; }
+  </style>
+</head>
+<body>
+  <header class="dmi-header">
+    <div class="dmi-logo">
+      <div class="dmi-logo-mark">D</div>
+      <span>DMI Smart Campus</span>
+    </div>
+    <button class="btn btn-ghost" onclick="logout()">Logout</button>
+  </header>
+  
+  <div class="container">
+    <a href="reception-dashboard.html" class="back-link fade-in">← Back to dashboard</a>
+    
+    <h1 class="page-title fade-in">Register New Student</h1>
+    <p class="page-subtitle fade-in">Add a new student to the database. A QR code and login will be auto-generated.</p>
+    
+    <form id="student-form" class="card fade-in" style="animation-delay: 100ms">
+      
+      <div class="form-section">
+        <div class="form-section-title">Basic Information</div>
+        <div class="form-grid">
+          <div class="field form-grid-full">
+            <label class="label">Full Name <span class="required">*</span></label>
+            <input type="text" class="input" name="StudentName" required autofocus>
+          </div>
+          
+          <div class="field">
+            <label class="label">Phone Number <span class="required">*</span></label>
+            <input type="tel" class="input" name="PhoneNumber" required placeholder="0771234567">
+            <span class="field-hint">Used for default password (last 6 digits)</span>
+          </div>
+          
+          <div class="field">
+            <label class="label">Email</label>
+            <input type="email" class="input" name="Email" placeholder="student@example.com">
+          </div>
+          
+          <div class="field form-grid-full">
+            <label class="label">Address <span class="required">*</span></label>
+            <input type="text" class="input" name="Address" required>
+          </div>
+          
+          <div class="field">
+            <label class="label">Date of Birth</label>
+            <input type="date" class="input" name="DateOfBirth">
+          </div>
+          
+          <div class="field">
+            <label class="label">Gender</label>
+            <select class="select" name="Gender">
+              <option value="">Select...</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <div class="form-section">
+        <div class="form-section-title">Course & Branch</div>
+        <div class="form-grid">
+          <div class="field">
+            <label class="label">Branch <span class="required">*</span></label>
+            <select class="select" name="BranchID" id="branch-select" required>
+              <option value="">Loading branches...</option>
+            </select>
+          </div>
+          
+          <div class="field">
+            <label class="label">Course <span class="required">*</span></label>
+            <select class="select" name="Course" required>
+              <option value="">Select course...</option>
+              <option value="Spoken English">Spoken English</option>
+              <option value="IELTS">IELTS</option>
+              <option value="Business English">Business English</option>
+              <option value="MS Office">MS Office</option>
+              <option value="Web Development">Web Development</option>
+              <option value="Graphic Design">Graphic Design</option>
+              <option value="Computer Hardware">Computer Hardware</option>
+              <option value="Programming">Programming</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          
+          <div class="field">
+            <label class="label">Admission Date</label>
+            <input type="date" class="input" name="AdmissionDate" id="admission-date">
+          </div>
+          
+          <div class="field">
+            <label class="label">Registration Number</label>
+            <input type="text" class="input" name="RegistrationNumber" placeholder="Auto-generated if blank">
+            <span class="field-hint">Leave blank to auto-generate</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="form-section">
+        <div class="form-section-title">Guardian (Optional)</div>
+        <div class="form-grid">
+          <div class="field">
+            <label class="label">Guardian Name</label>
+            <input type="text" class="input" name="GuardianName">
+          </div>
+          
+          <div class="field">
+            <label class="label">Guardian Phone</label>
+            <input type="tel" class="input" name="GuardianPhone" placeholder="0771234567">
+          </div>
+        </div>
+      </div>
+      
+      <div class="submit-bar">
+        <button type="button" class="btn btn-ghost" onclick="window.location.href='reception-dashboard.html'">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="submit-btn">
+          Register Student
+        </button>
+      </div>
+    </form>
+  </div>
+  
+  <!-- Success Modal -->
+  <div class="success-overlay" id="success-overlay">
+    <div class="success-card">
+      <div class="success-icon">✓</div>
+      <div class="success-title">Student Registered!</div>
+      <div class="success-subtitle" id="success-name">—</div>
+      
+      <div class="creds-box">
+        <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;color:var(--text-muted);margin-bottom:0.75rem;">Student Credentials</div>
+        <div class="creds-row">
+          <span class="creds-label">Registration #</span>
+          <span class="creds-value" id="cred-reg">—</span>
+        </div>
+        <div class="creds-row">
+          <span class="creds-label">Username</span>
+          <span class="creds-value" id="cred-user">—</span>
+        </div>
+        <div class="creds-row">
+          <span class="creds-label">Password</span>
+          <span class="creds-value" id="cred-pass">—</span>
+        </div>
+        <div class="creds-row">
+          <span class="creds-label">QR Code ID</span>
+          <span class="creds-value" id="cred-qr">—</span>
+        </div>
+      </div>
+      
+      <p style="font-size:0.8125rem;color:var(--text-muted);margin-bottom:1.5rem;text-align:center;line-height:1.5;">
+        💡 Default password = last 6 digits of phone number<br>
+        Generate a QR card using the QR Code ID above
+      </p>
+      
+      <div class="success-actions">
+        <button class="btn btn-ghost" onclick="window.location.href='reception-dashboard.html'">Done</button>
+        <button class="btn btn-primary" onclick="addAnother()">Add Another</button>
+      </div>
+    </div>
+  </div>
+  
+  <script src="js/api.js"></script>
+  <script>
+    const user = requireAuth(['admin', 'reception']);
+    if (!user) throw 'redirect';
+    
+    // Set today's date as default
+    document.getElementById('admission-date').value = new Date().toISOString().split('T')[0];
+    
+    // Load branches into dropdown
+    async function loadBranches() {
+      const result = await apiCall('listBranches');
+      const select = document.getElementById('branch-select');
+      
+      if (!result || !result.success) {
+        select.innerHTML = '<option value="">Failed to load branches</option>';
+        return;
+      }
+      
+      let options = '<option value="">Select branch...</option>';
+      result.branches.forEach(b => {
+        const selected = String(b.BranchID) === String(user.branchId) ? 'selected' : '';
+        options += `<option value="${b.BranchID}" ${selected}>${b.BranchName}</option>`;
+      });
+      select.innerHTML = options;
+      
+      // If reception (not admin), lock to their branch
+      if (user.role === 'reception') {
+        select.disabled = true;
+      }
+    }
+    
+    loadBranches();
+    
+    // Submit handler
+    document.getElementById('student-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Registering...';
+      
+      // Collect form data
+      const formData = new FormData(e.target);
+      const params = {};
+      for (const [key, value] of formData.entries()) {
+        if (value) params[key] = value;
+      }
+      
+      // For locked dropdown, FormData may miss it
+      if (user.role === 'reception' && !params.BranchID) {
+        params.BranchID = user.branchId;
+      }
+      
+      const result = await apiCall('createStudent', params);
+      
+      btn.disabled = false;
+      btn.textContent = 'Register Student';
+      
+      if (result && result.success) {
+        // Show success modal with credentials
+        document.getElementById('success-name').textContent = result.student.StudentName;
+        document.getElementById('cred-reg').textContent = result.student.RegistrationNumber;
+        document.getElementById('cred-user').textContent = result.loginCredentials.username;
+        document.getElementById('cred-pass').textContent = result.loginCredentials.defaultPassword;
+        document.getElementById('cred-qr').textContent = result.student.QRCodeID;
+        document.getElementById('success-overlay').classList.add('active');
+      } else {
+        showToast(result?.error || 'Failed to register student', 'error');
+      }
+    });
+    
+    function addAnother() {
+      document.getElementById('success-overlay').classList.remove('active');
+      document.getElementById('student-form').reset();
+      document.getElementById('admission-date').value = new Date().toISOString().split('T')[0];
+      
+      // Restore branch selection for reception
+      if (user.role === 'reception') {
+        document.getElementById('branch-select').value = user.branchId;
+      }
+      
+      document.querySelector('input[name="StudentName"]').focus();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>

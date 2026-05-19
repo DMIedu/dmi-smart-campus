@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Group Class — DMI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    
+    .back-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .back-link:hover { color: var(--dmi-primary); }
+    
+    .page-title {
+      font-family: var(--font-display);
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.25rem;
+    }
+    
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 0.9375rem;
+      margin-bottom: 2rem;
+    }
+    
+    .form-section { margin-bottom: 1.5rem; }
+    
+    .form-section-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .form-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .form-grid-full { grid-column: 1 / -1; }
+    
+    @media (max-width: 600px) {
+      .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
+    }
+    
+    .field { display: flex; flex-direction: column; }
+    .field .label { display: flex; align-items: center; gap: 0.25rem; }
+    .required { color: var(--dmi-danger); }
+    
+    .field-hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+    
+    /* Day picker */
+    .day-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    
+    .day-chip {
+      flex: 1;
+      min-width: 70px;
+      padding: 0.625rem 0.5rem;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: center;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: all var(--transition);
+      user-select: none;
+    }
+    
+    .day-chip:hover { border-color: var(--dmi-primary); }
+    
+    .day-chip.active {
+      background: var(--dmi-primary);
+      color: white;
+      border-color: var(--dmi-primary);
+    }
+    
+    /* Preview card */
+    .preview-card {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e2a5e 100%);
+      color: white;
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .preview-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.8;
+      margin-bottom: 0.25rem;
+    }
+    
+    .preview-value {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+    
+    .preview-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255,255,255,0.15);
+    }
+    
+    .preview-stat-label {
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      opacity: 0.7;
+    }
+    
+    .preview-stat-value {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1rem;
+      margin-top: 0.125rem;
+    }
+    
+    .submit-bar {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      margin-top: 0.5rem;
+    }
+    
+    @media (max-width: 600px) {
+      .submit-bar { flex-direction: column-reverse; }
+      .submit-bar .btn { width: 100%; }
+    }
+    
+    /* Success modal */
+    .success-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .success-overlay.active { display: flex; }
+    
+    .success-card {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 2.5rem 2rem 2rem;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 25px 60px -15px rgba(0,0,0,0.3);
+      animation: pop-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    
+    @keyframes pop-in {
+      from { transform: scale(0.85); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    
+    .success-icon {
+      width: 64px;
+      height: 64px;
+      background: #d1fae5;
+      color: #065f46;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin: 0 auto 1rem;
+    }
+    
+    .success-title {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 0.25rem;
+    }
+    
+    .success-subtitle {
+      color: var(--text-muted);
+      text-align: center;
+      font-size: 0.9375rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .success-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+    .success-actions .btn { flex: 1; }
+  </style>
+</head>
+<body>
+  <header class="dmi-header">
+    <div class="dmi-logo">
+      <div class="dmi-logo-mark">D</div>
+      <span>DMI Smart Campus</span>
+    </div>
+    <button class="btn btn-ghost" onclick="logout()">Logout</button>
+  </header>
+  
+  <div class="container">
+    <a href="reception-dashboard.html" class="back-link fade-in">← Back to dashboard</a>
+    
+    <h1 class="page-title fade-in">Create Group Class</h1>
+    <p class="page-subtitle fade-in">Set up a new digital class book / batch.</p>
+    
+    <!-- Live preview -->
+    <div class="preview-card fade-in" style="animation-delay: 50ms">
+      <div class="preview-label">Preview</div>
+      <div class="preview-value" id="preview-name">— New Class —</div>
+      <div class="preview-grid">
+        <div>
+          <div class="preview-stat-label">Days</div>
+          <div class="preview-stat-value" id="preview-days">—</div>
+        </div>
+        <div>
+          <div class="preview-stat-label">Time</div>
+          <div class="preview-stat-value" id="preview-time">—</div>
+        </div>
+        <div>
+          <div class="preview-stat-label">Teacher</div>
+          <div class="preview-stat-value" id="preview-teacher">—</div>
+        </div>
+        <div>
+          <div class="preview-stat-label">Total Classes</div>
+          <div class="preview-stat-value" id="preview-classes">—</div>
+        </div>
+      </div>
+    </div>
+    
+    <form id="class-form" class="card fade-in" style="animation-delay: 100ms">
+      
+      <div class="form-section">
+        <div class="form-section-title">Class Details</div>
+        <div class="form-grid">
+          <div class="field form-grid-full">
+            <label class="label">Batch Name <span class="required">*</span></label>
+            <input type="text" class="input" name="BatchName" required placeholder="e.g. Saturday Spoken English - May 2026">
+          </div>
+          
+          <div class="field">
+            <label class="label">Branch <span class="required">*</span></label>
+            <select class="select" name="BranchID" id="branch-select" required>
+              <option value="">Loading...</option>
+            </select>
+          </div>
+          
+          <div class="field">
+            <label class="label">Course <span class="required">*</span></label>
+            <select class="select" name="Course" required>
+              <option value="">Select course...</option>
+              <option value="Spoken English">Spoken English</option>
+              <option value="IELTS">IELTS</option>
+              <option value="Business English">Business English</option>
+              <option value="MS Office">MS Office</option>
+              <option value="Web Development">Web Development</option>
+              <option value="Graphic Design">Graphic Design</option>
+              <option value="Computer Hardware">Computer Hardware</option>
+              <option value="Programming">Programming</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          
+          <div class="field form-grid-full">
+            <label class="label">Teacher <span class="required">*</span></label>
+            <select class="select" name="TeacherID" id="teacher-select" required>
+              <option value="">Loading teachers...</option>
+            </select>
+            <span class="field-hint">No teachers yet? Create one from the dashboard first.</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="form-section">
+        <div class="form-section-title">Schedule</div>
+        
+        <div class="field" style="margin-bottom: 1rem;">
+          <label class="label">Class Days <span class="required">*</span></label>
+          <div class="day-picker" id="day-picker">
+            <div class="day-chip" data-day="Monday">Mon</div>
+            <div class="day-chip" data-day="Tuesday">Tue</div>
+            <div class="day-chip" data-day="Wednesday">Wed</div>
+            <div class="day-chip" data-day="Thursday">Thu</div>
+            <div class="day-chip" data-day="Friday">Fri</div>
+            <div class="day-chip" data-day="Saturday">Sat</div>
+            <div class="day-chip" data-day="Sunday">Sun</div>
+          </div>
+          <input type="hidden" name="Days" id="days-input" required>
+          <span class="field-hint">Tap to select multiple days</span>
+        </div>
+        
+        <div class="form-grid form-grid-3">
+          <div class="field">
+            <label class="label">Start Time <span class="required">*</span></label>
+            <input type="time" class="input" name="StartTime" required value="07:30">
+          </div>
+          
+          <div class="field">
+            <label class="label">End Time <span class="required">*</span></label>
+            <input type="time" class="input" name="EndTime" required value="17:00">
+          </div>
+          
+          <div class="field">
+            <label class="label">Start Date <span class="required">*</span></label>
+            <input type="date" class="input" name="StartDate" id="start-date" required>
+          </div>
+        </div>
+      </div>
+      
+      <div class="form-section">
+        <div class="form-section-title">Course Structure</div>
+        <div class="form-grid form-grid-3">
+          <div class="field">
+            <label class="label">Number of Units <span class="required">*</span></label>
+            <input type="number" class="input" name="NumberOfUnits" required min="1" value="12">
+          </div>
+          
+          <div class="field">
+            <label class="label">Total Course Hours <span class="required">*</span></label>
+            <input type="number" class="input" name="TotalCourseHours" required min="1" value="120">
+          </div>
+          
+          <div class="field">
+            <label class="label">Expected Classes <span class="required">*</span></label>
+            <input type="number" class="input" name="ExpectedClasses" required min="1" value="24">
+            <span class="field-hint">Total class sessions</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="submit-bar">
+        <button type="button" class="btn btn-ghost" onclick="window.location.href='reception-dashboard.html'">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="submit-btn">
+          Create Class
+        </button>
+      </div>
+    </form>
+  </div>
+  
+  <!-- Success Modal -->
+  <div class="success-overlay" id="success-overlay">
+    <div class="success-card">
+      <div class="success-icon">✓</div>
+      <div class="success-title">Class Created!</div>
+      <div class="success-subtitle" id="success-name">—</div>
+      
+      <p style="background:var(--bg);padding:1rem;border-radius:12px;font-size:0.875rem;color:var(--text);text-align:center;line-height:1.6;">
+        Your group class is ready. Next step: <strong>add students</strong> to this batch from the class book page.
+      </p>
+      
+      <div class="success-actions">
+        <button class="btn btn-ghost" onclick="addAnother()">Create Another</button>
+        <button class="btn btn-primary" onclick="window.location.href='reception-dashboard.html'">Done</button>
+      </div>
+    </div>
+  </div>
+  
+  <script src="js/api.js"></script>
+  <script>
+    const user = requireAuth(['admin', 'reception']);
+    if (!user) throw 'redirect';
+    
+    // Set today as default start date
+    document.getElementById('start-date').value = new Date().toISOString().split('T')[0];
+    
+    let teachers = [];
+    
+    // Load branches
+    async function loadBranches() {
+      const result = await apiCall('listBranches');
+      const select = document.getElementById('branch-select');
+      
+      if (!result || !result.success) {
+        select.innerHTML = '<option value="">Failed to load branches</option>';
+        return;
+      }
+      
+      let options = '<option value="">Select branch...</option>';
+      result.branches.forEach(b => {
+        const selected = String(b.BranchID) === String(user.branchId) ? 'selected' : '';
+        options += `<option value="${b.BranchID}" ${selected}>${b.BranchName}</option>`;
+      });
+      select.innerHTML = options;
+      
+      if (user.role === 'reception') {
+        select.disabled = true;
+      }
+      
+      // After branch loaded, load teachers
+      loadTeachers();
+    }
+    
+    // Load teachers (filtered by branch)
+    async function loadTeachers() {
+      const branchId = document.getElementById('branch-select').value;
+      const params = branchId && user.role === 'admin' ? { branchId } : {};
+      
+      const result = await apiCall('listTeachers', params);
+      const select = document.getElementById('teacher-select');
+      
+      if (!result || !result.success) {
+        select.innerHTML = '<option value="">Failed to load teachers</option>';
+        return;
+      }
+      
+      teachers = result.teachers || [];
+      
+      if (teachers.length === 0) {
+        select.innerHTML = '<option value="">⚠ No teachers — create one first</option>';
+        return;
+      }
+      
+      let options = '<option value="">Select teacher...</option>';
+      teachers.forEach(t => {
+        options += `<option value="${t.TeacherID}" data-name="${t.TeacherName}">${t.TeacherName} (${t.Subject || 'Teacher'})</option>`;
+      });
+      select.innerHTML = options;
+    }
+    
+    // Reload teachers when branch changes (admin only)
+    document.getElementById('branch-select').addEventListener('change', () => {
+      loadTeachers();
+      updatePreview();
+    });
+    
+    loadBranches();
+    
+    // Day picker logic
+    const selectedDays = new Set();
+    const daysInput = document.getElementById('days-input');
+    
+    document.querySelectorAll('.day-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const day = chip.dataset.day;
+        if (selectedDays.has(day)) {
+          selectedDays.delete(day);
+          chip.classList.remove('active');
+        } else {
+          selectedDays.add(day);
+          chip.classList.add('active');
+        }
+        // Maintain weekly order
+        const ordered = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+          .filter(d => selectedDays.has(d));
+        daysInput.value = ordered.join(',');
+        updatePreview();
+      });
+    });
+    
+    // Live preview
+    function updatePreview() {
+      const form = document.getElementById('class-form');
+      const data = new FormData(form);
+      
+      const name = data.get('BatchName') || '— New Class —';
+      const days = data.get('Days') || '—';
+      const start = data.get('StartTime') || '';
+      const end = data.get('EndTime') || '';
+      const classes = data.get('ExpectedClasses') || '—';
+      
+      const teacherId = data.get('TeacherID');
+      const teacherName = teachers.find(t => t.TeacherID === teacherId)?.TeacherName || '—';
+      
+      document.getElementById('preview-name').textContent = name;
+      document.getElementById('preview-days').textContent = days.replace(/,/g, ' · ');
+      document.getElementById('preview-time').textContent = (start && end) ? `${start} – ${end}` : '—';
+      document.getElementById('preview-teacher').textContent = teacherName;
+      document.getElementById('preview-classes').textContent = classes;
+    }
+    
+    document.getElementById('class-form').addEventListener('input', updatePreview);
+    document.getElementById('class-form').addEventListener('change', updatePreview);
+    
+    // Submit handler
+    document.getElementById('class-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      if (!daysInput.value) {
+        showToast('Please select at least one class day', 'warning');
+        return;
+      }
+      
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+      
+      const formData = new FormData(e.target);
+      const params = {};
+      for (const [key, value] of formData.entries()) {
+        if (value) params[key] = value;
+      }
+      
+      // Lock to user's branch if reception
+      if (user.role === 'reception') {
+        params.BranchID = user.branchId;
+      }
+      
+      const result = await apiCall('createGroupClass', params);
+      
+      btn.disabled = false;
+      btn.textContent = 'Create Class';
+      
+      if (result && result.success) {
+        document.getElementById('success-name').textContent = result.groupClass.BatchName;
+        document.getElementById('success-overlay').classList.add('active');
+      } else {
+        showToast(result?.error || 'Failed to create class', 'error');
+      }
+    });
+    
+    function addAnother() {
+      document.getElementById('success-overlay').classList.remove('active');
+      document.getElementById('class-form').reset();
+      document.getElementById('start-date').value = new Date().toISOString().split('T')[0];
+      selectedDays.clear();
+      document.querySelectorAll('.day-chip').forEach(c => c.classList.remove('active'));
+      daysInput.value = '';
+      
+      // Restore times
+      document.querySelector('[name="StartTime"]').value = '07:30';
+      document.querySelector('[name="EndTime"]').value = '17:00';
+      document.querySelector('[name="NumberOfUnits"]').value = '12';
+      document.querySelector('[name="TotalCourseHours"]').value = '120';
+      document.querySelector('[name="ExpectedClasses"]').value = '24';
+      
+      if (user.role === 'reception') {
+        document.getElementById('branch-select').value = user.branchId;
+      }
+      
+      updatePreview();
+      document.querySelector('input[name="BatchName"]').focus();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>
