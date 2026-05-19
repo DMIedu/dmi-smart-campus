@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Scanner — DMI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    .scanner-wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    
+    .back-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+    
+    .back-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .back-link:hover { color: var(--dmi-primary); }
+    
+    .mode-switcher {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 0.25rem;
+      border-radius: 10px;
+      gap: 0.25rem;
+    }
+    
+    .mode-switcher button {
+      padding: 0.5rem 1rem;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all var(--transition);
+    }
+    
+    .mode-switcher button.active {
+      background: var(--dmi-primary);
+      color: white;
+    }
+    
+    .scanner-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-card);
+    }
+    
+    .scanner-title {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+    
+    .scanner-subtitle {
+      color: var(--text-muted);
+      font-size: 0.9375rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    #qr-reader {
+      border-radius: 16px;
+      overflow: hidden;
+      background: #000;
+      min-height: 320px;
+    }
+    
+    #qr-reader video { border-radius: 16px; }
+    
+    .manual-entry {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px dashed var(--border);
+    }
+    
+    .manual-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .manual-row input { flex: 1; }
+    
+    /* Result modal */
+    .result-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      animation: fade-in 200ms ease-out;
+    }
+    
+    .result-overlay.active { display: flex; }
+    
+    .result-card {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 2rem 1.75rem;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 25px 60px -15px rgba(0,0,0,0.3);
+      animation: pop-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    
+    @keyframes pop-in {
+      from { transform: scale(0.85); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    
+    .result-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.25rem;
+      margin-bottom: 1rem;
+      animation: pulse-ring 1.4s infinite;
+    }
+    
+    .result-icon.success { background: #d1fae5; color: #065f46; }
+    .result-icon.error { background: #fee2e2; color: #991b1b; animation: none; }
+    .result-icon.warning { background: #fef3c7; color: #92400e; animation: none; }
+    
+    .result-title {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.5rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    .result-name {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    
+    .result-meta {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+    
+    .result-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: var(--bg);
+      border-radius: 12px;
+    }
+    
+    .result-stat-val {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 800;
+    }
+    
+    .result-stat-lbl {
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-top: 0.25rem;
+    }
+    
+    .live-counter {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg);
+      padding: 0.5rem 0.875rem;
+      border-radius: 999px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+    
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: pulse-ring 1.5s infinite;
+    }
+    
+    @media (max-width: 600px) {
+      .scanner-wrap { padding: 1rem; }
+      .scanner-card { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="scanner-wrap">
+    <div class="back-bar">
+      <a href="reception-dashboard.html" class="back-link">← Dashboard</a>
+      <div class="mode-switcher">
+        <button data-mode="student" class="active">🎓 Student</button>
+        <button data-mode="teacher">👨‍🏫 Teacher</button>
+      </div>
+    </div>
+    
+    <div class="scanner-card fade-in">
+      <div class="scanner-title">QR Scanner</div>
+      <div class="scanner-subtitle" id="mode-hint">
+        Hold a student's QR card in front of the camera.
+      </div>
+      
+      <div class="live-counter">
+        <span class="live-dot"></span>
+        <span id="scan-count-text">0 successful scans this session</span>
+      </div>
+      
+      <div id="qr-reader"></div>
+      
+      <div class="manual-entry">
+        <label class="label">Manual Entry (if QR fails)</label>
+        <div class="manual-row">
+          <input type="text" class="input" id="manual-qr" placeholder="Paste or type QR Code ID (e.g. QR-...)" autocomplete="off">
+          <button class="btn btn-primary" onclick="submitManual()">Submit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Result Modal -->
+  <div class="result-overlay" id="result-overlay" onclick="closeResult(event)">
+    <div class="result-card" onclick="event.stopPropagation()">
+      <div class="result-icon" id="result-icon">✓</div>
+      <div class="result-title" id="result-title">Marked!</div>
+      <div class="result-name" id="result-name">—</div>
+      <div class="result-meta" id="result-meta">—</div>
+      
+      <div class="result-stats" id="result-stats" style="display:none">
+        <div>
+          <div class="result-stat-val" id="r-present">—</div>
+          <div class="result-stat-lbl">Present</div>
+        </div>
+        <div>
+          <div class="result-stat-val" id="r-absent">—</div>
+          <div class="result-stat-lbl">Absent</div>
+        </div>
+        <div>
+          <div class="result-stat-val" id="r-percent">—</div>
+          <div class="result-stat-lbl">Attendance</div>
+        </div>
+      </div>
+      
+      <button class="btn btn-primary" style="width:100%" onclick="closeResult()">Continue Scanning</button>
+    </div>
+  </div>
+  
+  <script src="js/api.js"></script>
+  <script>
+    const user = requireAuth(['admin', 'reception']);
+    if (!user) throw 'redirect';
+    
+    let currentMode = 'student';
+    let scanCount = 0;
+    let scanner = null;
+    let lastScanTime = 0;
+    let lastScanCode = '';
+    
+    // Mode switcher
+    document.querySelectorAll('.mode-switcher button').forEach(b => {
+      b.addEventListener('click', () => {
+        currentMode = b.dataset.mode;
+        document.querySelectorAll('.mode-switcher button').forEach(x => 
+          x.classList.toggle('active', x === b));
+        document.getElementById('mode-hint').textContent = currentMode === 'teacher'
+          ? 'Hold the teacher\'s QR card in front of the camera. First scan = arrival, second = departure.'
+          : 'Hold a student\'s QR card in front of the camera.';
+      });
+    });
+    
+    // Initialize scanner
+    function startScanner() {
+      scanner = new Html5Qrcode('qr-reader');
+      
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0
+      };
+      
+      scanner.start(
+        { facingMode: 'environment' },
+        config,
+        onScanSuccess,
+        onScanError
+      ).catch(err => {
+        showToast('Camera error: ' + err, 'error');
+        document.getElementById('qr-reader').innerHTML = `
+          <div style="padding:2rem;text-align:center;color:#fff;">
+            <div style="font-size:3rem;margin-bottom:1rem;">📷</div>
+            <div style="margin-bottom:0.5rem;font-weight:600;">Camera unavailable</div>
+            <div style="font-size:.875rem;opacity:.7;">Use manual entry below</div>
+          </div>
+        `;
+      });
+    }
+    
+    function onScanSuccess(decodedText) {
+      // Debounce - prevent same code spam within 3 sec
+      const now = Date.now();
+      if (decodedText === lastScanCode && now - lastScanTime < 3000) return;
+      lastScanCode = decodedText;
+      lastScanTime = now;
+      
+      processQR(decodedText);
+    }
+    
+    function onScanError() {
+      // silent - happens many times per second when no QR detected
+    }
+    
+    async function processQR(qrCode) {
+      // Optional vibration on mobile
+      if (navigator.vibrate) navigator.vibrate(50);
+      
+      const action = currentMode === 'teacher' ? 'markTeacherQR' : 'markStudentQR';
+      const result = await apiCall(action, { qrCode });
+      
+      if (!result) return;
+      
+      if (result.success) {
+        scanCount++;
+        document.getElementById('scan-count-text').textContent = 
+          `${scanCount} successful scan${scanCount === 1 ? '' : 's'} this session`;
+        showResult('success', result);
+      } else if (result.alreadyMarked) {
+        showResult('warning', result);
+      } else {
+        showResult('error', result);
+      }
+    }
+    
+    function showResult(type, result) {
+      const icon = document.getElementById('result-icon');
+      const title = document.getElementById('result-title');
+      const name = document.getElementById('result-name');
+      const meta = document.getElementById('result-meta');
+      const stats = document.getElementById('result-stats');
+      
+      icon.className = 'result-icon ' + type;
+      
+      if (type === 'success') {
+        icon.textContent = '✓';
+        title.textContent = result.action === 'arrival' ? 'Teacher Arrived' 
+          : result.action === 'departure' ? 'Teacher Departed' 
+          : 'Attendance Marked';
+        
+        if (currentMode === 'teacher') {
+          name.textContent = result.teacher.name;
+          meta.textContent = result.action === 'departure' 
+            ? `Hours worked: ${result.hoursWorked} · ${result.departureTime}`
+            : `Arrival: ${result.arrivalTime}`;
+          stats.style.display = 'none';
+        } else {
+          name.textContent = result.student.name;
+          meta.textContent = `${result.student.regNumber} · ${result.attendance.time}`;
+          
+          if (result.summary) {
+            stats.style.display = 'grid';
+            document.getElementById('r-present').textContent = result.summary.totalPresent;
+            document.getElementById('r-absent').textContent = result.summary.totalAbsent;
+            document.getElementById('r-percent').textContent = result.summary.percent + '%';
+          }
+        }
+      } else if (type === 'warning') {
+        icon.textContent = '⚠';
+        title.textContent = 'Already Marked';
+        if (result.student) {
+          name.textContent = result.student.name;
+          meta.textContent = `Marked at ${result.student.time || 'earlier today'}`;
+        } else {
+          name.textContent = result.teacher?.name || '';
+          meta.textContent = result.error || '';
+        }
+        stats.style.display = 'none';
+      } else {
+        icon.textContent = '✕';
+        title.textContent = 'Error';
+        name.textContent = result.error || 'Unknown error';
+        meta.textContent = '';
+        stats.style.display = 'none';
+      }
+      
+      document.getElementById('result-overlay').classList.add('active');
+      
+      // Auto-close success after 3s
+      if (type === 'success') {
+        setTimeout(closeResult, 3500);
+      }
+    }
+    
+    function closeResult(e) {
+      if (e && e.target.closest('.result-card')) return;
+      document.getElementById('result-overlay').classList.remove('active');
+    }
+    
+    function submitManual() {
+      const code = document.getElementById('manual-qr').value.trim();
+      if (!code) return;
+      processQR(code);
+      document.getElementById('manual-qr').value = '';
+    }
+    
+    document.getElementById('manual-qr').addEventListener('keypress', e => {
+      if (e.key === 'Enter') submitManual();
+    });
+    
+    // Start camera
+    startScanner();
+    
+    // Clean up on page leave
+    window.addEventListener('beforeunload', () => {
+      if (scanner && scanner.isScanning) scanner.stop();
+    });
+  </script>
+</body>
+</html>

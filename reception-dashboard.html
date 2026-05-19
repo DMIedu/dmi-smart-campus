@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reception Dashboard — DMI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    
+    .greeting {
+      margin-bottom: 1.75rem;
+    }
+    .greeting h1 {
+      font-family: var(--font-display);
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.25rem;
+    }
+    .greeting p {
+      color: var(--text-muted);
+      font-size: 0.9375rem;
+    }
+    
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .stat-tile.accent-blue { border-left: 3px solid #3b82f6; }
+    .stat-tile.accent-green { border-left: 3px solid #10b981; }
+    .stat-tile.accent-amber { border-left: 3px solid #f59e0b; }
+    .stat-tile.accent-rose { border-left: 3px solid #f43f5e; }
+    .stat-tile.accent-violet { border-left: 3px solid #8b5cf6; }
+    .stat-tile.accent-cyan { border-left: 3px solid #06b6d4; }
+    
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    @media (max-width: 768px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+    
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+    }
+    
+    .action-tile {
+      padding: 1.25rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      text-align: center;
+      text-decoration: none;
+      color: inherit;
+      transition: all var(--transition);
+      cursor: pointer;
+      display: block;
+    }
+    
+    .action-tile:hover {
+      border-color: var(--dmi-primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-card);
+    }
+    
+    .action-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+    
+    .action-label {
+      font-size: 0.8125rem;
+      font-weight: 600;
+    }
+    
+    .scan-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .scan-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.625rem 0.75rem;
+      border-radius: 8px;
+      background: var(--bg);
+    }
+    
+    .scan-avatar {
+      width: 36px;
+      height: 36px;
+      background: var(--dmi-primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.875rem;
+      flex-shrink: 0;
+    }
+    
+    .scan-info { flex: 1; min-width: 0; }
+    .scan-name { font-weight: 600; font-size: 0.875rem; }
+    .scan-meta { font-size: 0.75rem; color: var(--text-muted); }
+    .scan-time { font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); }
+    
+    .empty-state {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--dmi-primary), var(--dmi-primary-dark));
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.875rem;
+    }
+    
+    .user-meta { line-height: 1.2; }
+    .user-name { font-weight: 600; font-size: 0.875rem; }
+    .user-role { font-size: 0.75rem; color: var(--text-muted); }
+    
+    .logout-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.875rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-left: 0.5rem;
+    }
+    .logout-btn:hover { background: var(--bg); }
+  </style>
+</head>
+<body>
+  <header class="dmi-header">
+    <div class="dmi-logo">
+      <div class="dmi-logo-mark">D</div>
+      <span>DMI Smart Campus</span>
+    </div>
+    <div class="user-pill">
+      <div class="user-avatar" id="user-avatar">A</div>
+      <div class="user-meta">
+        <div class="user-name" id="user-name">Loading...</div>
+        <div class="user-role" id="user-role"></div>
+      </div>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </header>
+  
+  <div class="container">
+    <div class="greeting fade-in">
+      <h1 id="greeting-text">Welcome back</h1>
+      <p id="greeting-sub">Here's what's happening today.</p>
+    </div>
+    
+    <!-- Stats -->
+    <div class="stat-grid fade-in" style="animation-delay: 50ms">
+      <div class="stat-tile accent-blue">
+        <div class="stat-value" id="stat-students">—</div>
+        <div class="stat-label">Total Students</div>
+      </div>
+      <div class="stat-tile accent-violet">
+        <div class="stat-value" id="stat-teachers">—</div>
+        <div class="stat-label">Teachers</div>
+      </div>
+      <div class="stat-tile accent-cyan">
+        <div class="stat-value" id="stat-classes">—</div>
+        <div class="stat-label">Active Classes</div>
+      </div>
+      <div class="stat-tile accent-green">
+        <div class="stat-value" id="stat-present">—</div>
+        <div class="stat-label">Present Today</div>
+      </div>
+      <div class="stat-tile accent-rose">
+        <div class="stat-value" id="stat-absent">—</div>
+        <div class="stat-label">Absent Today</div>
+      </div>
+      <div class="stat-tile accent-amber">
+        <div class="stat-value" id="stat-teachers-present">—</div>
+        <div class="stat-label">Teachers In</div>
+      </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="card fade-in" style="animation-delay: 100ms; margin-bottom: 1.5rem;">
+      <div class="section-title">Quick Actions</div>
+      <div class="quick-actions">
+        <a href="scanner.html" class="action-tile" style="background: linear-gradient(135deg, #1e3a8a, #1e2a5e); color: white; border: none;">
+          <span class="action-icon">📷</span>
+          <span class="action-label">Scan QR</span>
+        </a>
+        <a href="student-register.html" class="action-tile">
+          <span class="action-icon">👤</span>
+          <span class="action-label">New Student</span>
+        </a>
+        <a href="group-class-create.html" class="action-tile">
+          <span class="action-icon">📚</span>
+          <span class="action-label">New Class</span>
+        </a>
+        <a href="students.html" class="action-tile">
+          <span class="action-icon">🔍</span>
+          <span class="action-label">Find Student</span>
+        </a>
+        <a href="class-book.html" class="action-tile">
+          <span class="action-icon">📖</span>
+          <span class="action-label">Class Book</span>
+        </a>
+        <a href="reports.html" class="action-tile">
+          <span class="action-icon">📊</span>
+          <span class="action-label">Reports</span>
+        </a>
+      </div>
+    </div>
+    
+    <!-- Recent Scans -->
+    <div class="grid-2 fade-in" style="animation-delay: 150ms">
+      <div class="card">
+        <div class="section-title">
+          Recent QR Scans Today
+          <span class="badge badge-info" id="scan-count">0</span>
+        </div>
+        <div class="scan-list" id="scan-list">
+          <div class="empty-state">No scans yet today.</div>
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="section-title">Today at a glance</div>
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <div style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
+            <span style="color: var(--text-muted); font-size: 0.875rem;">Date</span>
+            <span style="font-weight: 600;" id="today-date">—</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
+            <span style="color: var(--text-muted); font-size: 0.875rem;">Branch</span>
+            <span style="font-weight: 600;" id="branch-name">—</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
+            <span style="color: var(--text-muted); font-size: 0.875rem;">Attendance Rate</span>
+            <span style="font-weight: 600;" id="att-rate">—</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 0.75rem 0;">
+            <span style="color: var(--text-muted); font-size: 0.875rem;">Your Role</span>
+            <span style="font-weight: 600;" id="role-display">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="js/api.js"></script>
+  <script>
+    const user = requireAuth(['admin', 'reception']);
+    if (!user) throw 'redirect';
+    
+    // Header user info
+    document.getElementById('user-avatar').textContent = (user.name || 'U').charAt(0).toUpperCase();
+    document.getElementById('user-name').textContent = user.name || 'User';
+    document.getElementById('user-role').textContent = user.role === 'admin' ? 'Administrator' : (user.branchName || 'Reception');
+    
+    // Greeting
+    const hour = new Date().getHours();
+    const timeOfDay = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    document.getElementById('greeting-text').textContent = `${timeOfDay}, ${(user.name || '').split(' ')[0]}`;
+    
+    // Today date
+    const today = new Date();
+    document.getElementById('today-date').textContent = today.toLocaleDateString('en-GB', { 
+      weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' 
+    });
+    document.getElementById('role-display').textContent = user.role === 'admin' ? 'Administrator' : 'Reception Staff';
+    
+    // Load dashboard data
+    async function loadDashboard() {
+      const result = await apiCall('dashboardReception');
+      
+      if (!result || !result.success) {
+        showToast(result?.error || 'Failed to load dashboard', 'error');
+        return;
+      }
+      
+      const stats = result.stats;
+      document.getElementById('stat-students').textContent = stats.totalStudents;
+      document.getElementById('stat-teachers').textContent = stats.totalTeachers;
+      document.getElementById('stat-classes').textContent = stats.activeClasses;
+      document.getElementById('stat-present').textContent = stats.todayPresent;
+      document.getElementById('stat-absent').textContent = stats.todayAbsent;
+      document.getElementById('stat-teachers-present').textContent = stats.teachersPresent;
+      
+      document.getElementById('branch-name').textContent = result.branchName || 'All Branches';
+      
+      const total = stats.todayPresent + stats.todayAbsent;
+      const rate = total > 0 ? Math.round((stats.todayPresent / total) * 100) : 0;
+      document.getElementById('att-rate').innerHTML = total > 0 
+        ? `<span class="badge ${rate >= 75 ? 'badge-success' : 'badge-warning'}">${rate}%</span>` 
+        : '—';
+      
+      // Recent scans
+      const scanList = document.getElementById('scan-list');
+      document.getElementById('scan-count').textContent = result.recentScans.length;
+      
+      if (result.recentScans.length === 0) {
+        scanList.innerHTML = '<div class="empty-state">No scans yet today.</div>';
+      } else {
+        scanList.innerHTML = result.recentScans.map(s => `
+          <div class="scan-row">
+            <div class="scan-avatar">${(s.name || '?').charAt(0).toUpperCase()}</div>
+            <div class="scan-info">
+              <div class="scan-name">${s.name || 'Unknown'}</div>
+              <div class="scan-meta">${s.regNumber}</div>
+            </div>
+            <div class="scan-time">${formatTime(s.time)}</div>
+          </div>
+        `).join('');
+      }
+    }
+    
+    loadDashboard();
+    
+    // Auto-refresh every 30 seconds
+    setInterval(loadDashboard, 30000);
+  </script>
+</body>
+</html>

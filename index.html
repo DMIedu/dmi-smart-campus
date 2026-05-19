@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DMI Smart Campus</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(30, 58, 138, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 85% 80%, rgba(245, 158, 11, 0.06) 0%, transparent 50%),
+        var(--bg);
+    }
+    
+    .hero-brand {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    
+    .hero-mark {
+      width: 72px;
+      height: 72px;
+      background: linear-gradient(135deg, var(--dmi-primary), var(--dmi-primary-dark));
+      border-radius: 18px;
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.75rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 12px 32px -8px rgba(30, 58, 138, 0.4);
+    }
+    
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.875rem, 5vw, 2.75rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+    
+    .hero-subtitle {
+      color: var(--text-muted);
+      font-size: 1rem;
+      max-width: 480px;
+    }
+    
+    .role-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      width: 100%;
+      max-width: 720px;
+    }
+    
+    .role-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.75rem 1.5rem;
+      text-align: left;
+      cursor: pointer;
+      transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    
+    .role-card:hover {
+      border-color: var(--dmi-primary);
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .role-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .role-card[data-role="reception"] .role-icon { background: #dbeafe; color: #1e40af; }
+    .role-card[data-role="teacher"] .role-icon { background: #fef3c7; color: #92400e; }
+    .role-card[data-role="student"] .role-icon { background: #d1fae5; color: #065f46; }
+    
+    .role-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.125rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    .role-desc {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    
+    .footer {
+      margin-top: 3rem;
+      color: var(--text-muted);
+      font-size: 0.8125rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="hero-brand fade-in">
+      <div class="hero-mark">D</div>
+      <h1 class="hero-title">DMI Smart Campus</h1>
+      <p class="hero-subtitle">Digital attendance, class books, and campus management — across all branches.</p>
+    </div>
+    
+    <div class="role-grid fade-in" style="animation-delay: 100ms">
+      <a class="role-card" data-role="reception" href="login.html?role=reception">
+        <div class="role-icon">🏢</div>
+        <div class="role-title">Reception / Admin</div>
+        <div class="role-desc">Register students, manage classes, scan QR codes, run reports.</div>
+      </a>
+      
+      <a class="role-card" data-role="teacher" href="login.html?role=teacher">
+        <div class="role-icon">👨‍🏫</div>
+        <div class="role-title">Teacher</div>
+        <div class="role-desc">View batches, track attendance, monthly teaching summary.</div>
+      </a>
+      
+      <a class="role-card" data-role="student" href="login.html?role=student">
+        <div class="role-icon">🎓</div>
+        <div class="role-title">Student</div>
+        <div class="role-desc">Check attendance, timetable, class info, notifications.</div>
+      </a>
+    </div>
+    
+    <p class="footer">DMI Computer Education · www.dmi.lk</p>
+  </div>
+  
+  <script src="js/api.js"></script>
+  <script>
+    // Auto-redirect if already logged in
+    const user = getUser();
+    if (user) {
+      const target = {
+        admin: 'reception-dashboard.html',
+        reception: 'reception-dashboard.html',
+        teacher: 'teacher-dashboard.html',
+        student: 'student-dashboard.html'
+      }[user.role];
+      if (target) window.location.href = target;
+    }
+  </script>
+</body>
+</html>
