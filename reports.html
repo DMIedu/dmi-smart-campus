@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports — DMI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    
+    .back-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .back-link:hover { color: var(--dmi-primary); }
+    
+    .page-title {
+      font-family: var(--font-display);
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.25rem;
+    }
+    
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 0.9375rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    /* ===== REPORT TYPE TABS ===== */
+    .report-tabs {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .report-tab {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all var(--transition);
+      text-align: left;
+    }
+    
+    .report-tab:hover {
+      border-color: var(--dmi-primary);
+      transform: translateY(-2px);
+    }
+    
+    .report-tab.active {
+      background: linear-gradient(135deg, #1e3a8a, #1e2a5e);
+      border-color: #1e3a8a;
+      color: white;
+    }
+    
+    .report-tab-icon {
+      font-size: 1.375rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .report-tab-name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.875rem;
+      margin-bottom: 0.125rem;
+    }
+    
+    .report-tab-desc {
+      font-size: 0.6875rem;
+      opacity: 0.7;
+      line-height: 1.3;
+    }
+    
+    /* ===== FILTERS BAR ===== */
+    .filters-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: 1rem;
+      align-items: end;
+      flex-wrap: wrap;
+    }
+    
+    .filter-field {
+      flex: 1;
+      min-width: 180px;
+    }
+    
+    .filter-field-sm {
+      flex: 0 0 auto;
+    }
+    
+    /* ===== REPORT OUTPUT ===== */
+    .report-output {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    
+    .report-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .report-header-info h3 {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.25rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    .report-header-info p {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    
+    .report-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    /* Summary stat row */
+    .report-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .summary-stat {
+      background: var(--surface);
+      padding: 1.125rem 1.25rem;
+    }
+    
+    .summary-stat-value {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    
+    .summary-stat-label {
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-top: 0.375rem;
+    }
+    
+    /* Data table */
+    .report-table-wrap {
+      overflow-x: auto;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+    
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+    }
+    
+    .report-table thead {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    
+    .report-table th {
+      background: var(--bg);
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-weight: 700;
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    
+    .report-table th.num,
+    .report-table td.num { text-align: center; }
+    
+    .report-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #f1f5f9;
+      white-space: nowrap;
+    }
+    
+    .report-table tbody tr:hover td { background: #f8fafc; }
+    
+    .report-table .rank {
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    
+    .report-table .strong { font-weight: 600; }
+    
+    .pct-pill {
+      display: inline-block;
+      padding: 0.1875rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+    .pct-good { background: #d1fae5; color: #065f46; }
+    .pct-warn { background: #fef3c7; color: #92400e; }
+    .pct-bad { background: #fee2e2; color: #991b1b; }
+    
+    .status-pill {
+      display: inline-block;
+      padding: 0.1875rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.6875rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .status-present { background: #d1fae5; color: #065f46; }
+    .status-absent { background: #fee2e2; color: #991b1b; }
+    
+    /* Empty / loading states */
+    .report-state {
+      text-align: center;
+      padding: 4rem 1.5rem;
+      color: var(--text-muted);
+    }
+    
+    .report-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+    
+    .report-state-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.0625rem;
+      color: var(--text);
+      margin-bottom: 0.375rem;
+    }
+    
+    .report-state-text {
+      font-size: 0.875rem;
+      max-width: 380px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+    
+    .user-pill { display: flex; align-items: center; gap: 0.75rem; }
+    .logout-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.875rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .logout-btn:hover { background: var(--bg); }
+    
+    @media print {
+      .dmi-header, .back-link, .report-tabs, .filters-bar, .report-actions { display: none !important; }
+      .container { padding: 0; }
+      .report-output { border: none; }
+      .report-table-wrap { max-height: none; overflow: visible; }
+      .pct-pill, .status-pill { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+    
+    @media (max-width: 640px) {
+      .container { padding: 1rem; }
+      .filters-bar { flex-direction: column; align-items: stretch; }
+      .filter-field { min-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header class="dmi-header">
+    <div class="dmi-logo">
+      <div class="dmi-logo-mark">D</div>
+      <span>DMI Smart Campus</span>
+    </div>
+    <div class="user-pill">
+      <span style="font-size:0.8125rem;color:var(--text-muted);font-weight:600;" id="header-name">User</span>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </header>
+  
+  <div class="container">
+    <a href="reception-dashboard.html" class="back-link">← Back to dashboard</a>
+    
+    <h1 class="page-title fade-in">Reports & Analytics</h1>
+    <p class="page-subtitle fade-in">Generate attendance and performance reports.</p>
+    
+    <!-- Report type selector -->
+    <div class="report-tabs fade-in" id="report-tabs">
+      <div class="report-tab active" data-report="daily">
+        <div class="report-tab-icon">📅</div>
+        <div class="report-tab-name">Daily Attendance</div>
+        <div class="report-tab-desc">Who attended on a given day</div>
+      </div>
+      <div class="report-tab" data-report="monthly">
+        <div class="report-tab-icon">📊</div>
+        <div class="report-tab-name">Monthly Summary</div>
+        <div class="report-tab-desc">Student attendance for a month</div>
+      </div>
+      <div class="report-tab" data-report="branch">
+        <div class="report-tab-icon">🏢</div>
+        <div class="report-tab-name">Branch Performance</div>
+        <div class="report-tab-desc">Compare all branches</div>
+      </div>
+      <div class="report-tab" data-report="teacher">
+        <div class="report-tab-icon">👨‍🏫</div>
+        <div class="report-tab-name">Teacher Report</div>
+        <div class="report-tab-desc">Monthly work summary</div>
+      </div>
+      <div class="report-tab" data-report="student">
+        <div class="report-tab-icon">🎓</div>
+        <div class="report-tab-name">Student Summary</div>
+        <div class="report-tab-desc">Individual attendance record</div>
+      </div>
+      <div class="report-tab" data-report="classbook">
+        <div class="report-tab-icon">📖</div>
+        <div class="report-tab-name">Class Book</div>
+        <div class="report-tab-desc">Full batch attendance</div>
+      </div>
+    </div>
+    
+    <!-- Dynamic filters -->
+    <div class="filters-bar fade-in" id="filters-bar"></div>
+    
+    <!-- Report output -->
+    <div class="report-output fade-in" id="report-output">
+      <div class="report-state">
+        <div class="report-state-icon">📊</div>
+        <div class="report-state-title">Select filters and generate</div>
+        <div class="report-state-text">Choose a report type above, set your filters, then click Generate Report.</div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="js/api.js"></script>
+  <script>
+    const user = requireAuth(['admin', 'reception', 'teacher']);
+    if (!user) throw 'redirect';
+    
+    document.getElementById('header-name').textContent = user.name || 'User';
+    
+    let currentReport = 'daily';
+    let branches = [];
+    let teachers = [];
+    let classes = [];
+    let students = [];
+    let lastReportData = null;
+    
+    // Load reference data
+    async function loadRefData() {
+      const [bRes, tRes, cRes] = await Promise.all([
+        apiCall('listBranches'),
+        apiCall('listTeachers'),
+        apiCall('listGroupClasses', { status: 'Active' })
+      ]);
+      branches = (bRes && bRes.success) ? bRes.branches : [];
+      teachers = (tRes && tRes.success) ? tRes.teachers : [];
+      classes = (cRes && cRes.success) ? cRes.classes : [];
+    }
+    
+    // Tab switching
+    document.querySelectorAll('.report-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.report-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentReport = tab.dataset.report;
+        renderFilters();
+        resetOutput();
+      });
+    });
+    
+    // Render filters based on report type
+    function renderFilters() {
+      const bar = document.getElementById('filters-bar');
+      const today = new Date().toISOString().split('T')[0];
+      const thisMonth = today.substring(0, 7);
+      
+      let html = '';
+      
+      if (currentReport === 'daily') {
+        html = `
+          <div class="filter-field">
+            <label class="label">Date</label>
+            <input type="date" class="input" id="f-date" value="${today}">
+          </div>
+        `;
+      } else if (currentReport === 'monthly') {
+        html = `
+          <div class="filter-field">
+            <label class="label">Month</label>
+            <input type="month" class="input" id="f-month" value="${thisMonth}">
+          </div>
+        `;
+      } else if (currentReport === 'branch') {
+        html = `
+          <div class="filter-field">
+            <label class="label">Month</label>
+            <input type="month" class="input" id="f-month" value="${thisMonth}">
+          </div>
+        `;
+      } else if (currentReport === 'teacher') {
+        html = `
+          <div class="filter-field">
+            <label class="label">Teacher</label>
+            <select class="select" id="f-teacher">
+              <option value="">Select teacher...</option>
+              ${teachers.map(t => `<option value="${t.TeacherID}">${escape(t.TeacherName)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="filter-field">
+            <label class="label">Month</label>
+            <input type="month" class="input" id="f-month" value="${thisMonth}">
+          </div>
+        `;
+      } else if (currentReport === 'student') {
+        html = `
+          <div class="filter-field">
+            <label class="label">Student</label>
+            <select class="select" id="f-student">
+              <option value="">Loading students...</option>
+            </select>
+          </div>
+        `;
+      } else if (currentReport === 'classbook') {
+        html = `
+          <div class="filter-field">
+            <label class="label">Class / Batch</label>
+            <select class="select" id="f-class">
+              <option value="">Select class...</option>
+              ${classes.map(c => `<option value="${c.GroupClassID}">${escape(c.BatchName)} — ${escape(c.Course)}</option>`).join('')}
+            </select>
+          </div>
+        `;
+      }
+      
+      html += `
+        <div class="filter-field-sm">
+          <button class="btn btn-primary" onclick="generateReport()" id="gen-btn">Generate Report</button>
+        </div>
+      `;
+      
+      bar.innerHTML = html;
+      
+      // Load students for student report
+      if (currentReport === 'student') {
+        loadStudentsDropdown();
+      }
+    }
+    
+    async function loadStudentsDropdown() {
+      const result = await apiCall('searchStudents', {});
+      const select = document.getElementById('f-student');
+      if (!select) return;
+      
+      if (result && result.success) {
+        students = result.students;
+        select.innerHTML = '<option value="">Select student...</option>' +
+          students.map(s => `<option value="${s.StudentID}">${escape(s.StudentName)} (${escape(s.RegistrationNumber)})</option>`).join('');
+      } else {
+        select.innerHTML = '<option value="">Failed to load students</option>';
+      }
+    }
+    
+    function resetOutput() {
+      document.getElementById('report-output').innerHTML = `
+        <div class="report-state">
+          <div class="report-state-icon">📊</div>
+          <div class="report-state-title">Ready to generate</div>
+          <div class="report-state-text">Set your filters above, then click Generate Report.</div>
+        </div>
+      `;
+    }
+    
+    function showLoading() {
+      document.getElementById('report-output').innerHTML = `
+        <div class="report-state">
+          <div class="report-state-icon">⏳</div>
+          <div class="report-state-title">Generating report...</div>
+        </div>
+      `;
+    }
+    
+    // ===== GENERATE REPORT =====
+    async function generateReport() {
+      const btn = document.getElementById('gen-btn');
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+      showLoading();
+      
+      let result;
+      
+      try {
+        if (currentReport === 'daily') {
+          const date = document.getElementById('f-date').value;
+          result = await apiCall('reportDailyAttendance', { date });
+          renderDaily(result, date);
+        } else if (currentReport === 'monthly') {
+          const month = document.getElementById('f-month').value;
+          result = await apiCall('reportMonthlyAttendance', { month });
+          renderMonthly(result, month);
+        } else if (currentReport === 'branch') {
+          const month = document.getElementById('f-month').value;
+          result = await apiCall('reportBranchPerformance', { month });
+          renderBranch(result, month);
+        } else if (currentReport === 'teacher') {
+          const teacherId = document.getElementById('f-teacher').value;
+          const month = document.getElementById('f-month').value;
+          if (!teacherId) { showError('Please select a teacher'); return; }
+          result = await apiCall('reportTeacherMonthly', { TeacherID: teacherId, month });
+          renderTeacher(result, month);
+        } else if (currentReport === 'student') {
+          const studentId = document.getElementById('f-student').value;
+          if (!studentId) { showError('Please select a student'); return; }
+          result = await apiCall('reportStudentSummary', { StudentID: studentId });
+          renderStudent(result);
+        } else if (currentReport === 'classbook') {
+          const classId = document.getElementById('f-class').value;
+          if (!classId) { showError('Please select a class'); return; }
+          result = await apiCall('reportClassBook', { GroupClassID: classId });
+          renderClassBook(result);
+        }
+        lastReportData = result;
+      } catch (err) {
+        showError('Error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate Report';
+      }
+    }
+    
+    function showError(msg) {
+      document.getElementById('gen-btn').disabled = false;
+      document.getElementById('gen-btn').textContent = 'Generate Report';
+      document.getElementById('report-output').innerHTML = `
+        <div class="report-state">
+          <div class="report-state-icon">⚠</div>
+          <div class="report-state-title">Could not generate report</div>
+          <div class="report-state-text">${escape(msg)}</div>
+        </div>
+      `;
+    }
+    
+    // ===== RENDERERS =====
+    
+    function reportShell(title, subtitle, summaryStats, tableHtml) {
+      const summary = summaryStats.map(s => `
+        <div class="summary-stat">
+          <div class="summary-stat-value" style="color:${s.color || 'var(--text)'}">${s.value}</div>
+          <div class="summary-stat-label">${s.label}</div>
+        </div>
+      `).join('');
+      
+      return `
+        <div class="report-header">
+          <div class="report-header-info">
+            <h3>${escape(title)}</h3>
+            <p>${escape(subtitle)}</p>
+          </div>
+          <div class="report-actions">
+            <button class="btn btn-ghost" onclick="window.print()">🖨 Print</button>
+            <button class="btn btn-ghost" onclick="exportReportCSV()">⬇ CSV</button>
+          </div>
+        </div>
+        ${summary ? `<div class="report-summary">${summary}</div>` : ''}
+        ${tableHtml}
+      `;
+    }
+    
+    function emptyTable(msg) {
+      return `<div class="report-state"><div class="report-state-icon">📭</div><div class="report-state-title">No data</div><div class="report-state-text">${escape(msg)}</div></div>`;
+    }
+    
+    // --- Daily ---
+    function renderDaily(result, date) {
+      if (!result || !result.success) return showError(result?.error || 'Failed');
+      
+      const dateStr = new Date(date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      
+      let table;
+      if (result.records.length === 0) {
+        table = emptyTable('No attendance records for this date.');
+      } else {
+        table = `<div class="report-table-wrap"><table class="report-table"><thead><tr>
+          <th>Time</th><th>Reg #</th><th>Student</th><th>Course</th><th>Batch</th><th class="num">Status</th><th class="num">Method</th>
+        </tr></thead><tbody>`;
+        result.records.forEach(r => {
+          table += `<tr>
+            <td style="font-family:var(--font-mono)">${escape(formatTime(r.Time))}</td>
+            <td style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-muted)">${escape(r.RegistrationNumber)}</td>
+            <td class="strong">${escape(r.StudentName)}</td>
+            <td>${escape(r.Course)}</td>
+            <td>${escape(r.BatchName)}</td>
+            <td class="num"><span class="status-pill ${r.Status === 'Present' ? 'status-present' : 'status-absent'}">${escape(r.Status)}</span></td>
+            <td class="num">${escape(r.Method)}</td>
+          </tr>`;
+        });
+        table += `</tbody></table></div>`;
+      }
+      
+      document.getElementById('report-output').innerHTML = reportShell(
+        'Daily Attendance Report',
+        dateStr,
+        [
+          { label: 'Total Records', value: result.totalRecords },
+          { label: 'Present', value: result.presentCount, color: '#059669' },
+          { label: 'Absent', value: result.absentCount, color: '#dc2626' }
+        ],
+        table
+      );
+    }
+    
+    // --- Monthly ---
+    function renderMonthly(result, month) {
+      if (!result || !result.success) return showError(result?.error || 'Failed');
+      
+      const monthStr = new Date(month + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      
+      let table;
+      if (result.students.length === 0) {
+        table = emptyTable('No attendance records for this month.');
+      } else {
+        table = `<div class="report-table-wrap"><table class="report-table"><thead><tr>
+          <th class="num">#</th><th>Reg #</th><th>Student</th><th>Course</th>
+          <th class="num">Present</th><th class="num">Absent</th><th class="num">Total</th><th class="num">Attendance</th>
+        </tr></thead><tbody>`;
+        result.students.forEach((s, i) => {
+          table += `<tr>
+            <td class="num rank">${i + 1}</td>
+            <td style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-muted)">${escape(s.RegistrationNumber)}</td>
+            <td class="strong">${escape(s.StudentName)}</td>
+            <td>${escape(s.Course)}</td>
+            <td class="num" style="color:#059669;font-weight:700">${s.Present}</td>
+            <td class="num" style="color:#dc2626;font-weight:700">${s.Absent}</td>
+            <td class="num">${s.Total}</td>
+            <td class="num">${pctPill(s.Percent)}</td>
+          </tr>`;
+        });
+        table += `</tbody></table></div>`;
+      }
+      
+      document.getElementById('report-output').innerHTML = reportShell(
+        'Monthly Attendance Summary',
+        monthStr,
+        [
+          { label: 'Students', value: result.totalStudents },
+          { label: 'Avg Attendance', value: result.averageAttendance + '%', color: result.averageAttendance >= 75 ? '#059669' : '#d97706' }
+        ],
+        table
+      );
+    }
+    
+    // --- Branch ---
+    function renderBranch(result, month) {
+      if (!result || !result.success) return showError(result?.error || 'Admin access required');
+      
+      const monthStr = new Date(month + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      
+      let table;
+      if (result.branches.length === 0) {
+        table = emptyTable('No branch data available.');
+      } else {
+        table = `<div class="report-table-wrap"><table class="report-table"><thead><tr>
+          <th>Branch</th><th class="num">Students</th><th class="num">Teachers</th>
+          <th class="num">Classes</th><th class="num">Attendance Records</th><th class="num">Avg %</th>
+        </tr></thead><tbody>`;
+        result.branches.forEach(b => {
+          table += `<tr>
+            <td class="strong">${escape(b.BranchName)}</td>
+            <td class="num">${b.TotalStudents}</td>
+            <td class="num">${b.TotalTeachers}</td>
+            <td class="num">${b.ActiveClasses}</td>
+            <td class="num">${b.MonthAttendanceRecords}</td>
+            <td class="num">${pctPill(b.AveragePercent)}</td>
+          </tr>`;
+        });
+        table += `</tbody></table></div>`;
+      }
+      
+      const totalStudents = result.branches.reduce((s, b) => s + b.TotalStudents, 0);
+      const totalTeachers = result.branches.reduce((s, b) => s + b.TotalTeachers, 0);
+      
+      document.getElementById('report-output').innerHTML = reportShell(
+        'Branch Performance Report',
+        monthStr,
+        [
+          { label: 'Branches', value: result.branches.length },
+          { label: 'Total Students', value: totalStudents },
+          { label: 'Total Teachers', value: totalTeachers }
+        ],
+        table
+      );
+    }
+    
+    // --- Teacher ---
+    function renderTeacher(result, month) {
+      if (!result || !result.success) return showError(result?.error || 'Failed');
+      
+      const monthStr = new Date(month + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      const st = result.stats;
+      
+      let table;
+      if (result.batches.length === 0) {
+        table = emptyTable('This teacher has no batches.');
+      } else {
+        table = `<div class="report-table-wrap"><table class="report-table"><thead><tr>
+          <th>Batch</th><th>Course</th><th class="num">Students</th><th class="num">Avg Attendance</th>
+        </tr></thead><tbody>`;
+        result.batches.forEach(b => {
+          table += `<tr>
+            <td class="strong">${escape(b.BatchName)}</td>
+            <td>${escape(b.Course)}</td>
+            <td class="num">${b.TotalStudents}</td>
+            <td class="num">${pctPill(b.AvgAttendance)}</td>
+          </tr>`;
+        });
+        table += `</tbody></table></div>`;
+      }
+      
+      document.getElementById('report-output').innerHTML = reportShell(
+        'Teacher Monthly Report — ' + result.teacher.name,
+        result.teacher.subject + ' · ' + monthStr,
+        [
+          { label: 'Days Present', value: st.daysPresent },
+          { label: 'Total Hours', value: st.totalHours + 'h' },
+          { label: 'Classes Done', value: st.classesConducted },
+          { label: 'Units Completed', value: st.unitsCompleted },
+          { label: 'Pending Classes', value: st.pendingClasses, color: '#d97706' }
+        ],
+        table
+      );
+    }
+    
+    // --- Student ---
+    function renderStudent(result) {
+      if (!result || !result.success) return showError(result?.error || 'Failed');
+      
+      const s = result.student;
+      const sum = result.summary;
+      
+      let table;
+      if (!result.monthlyBreakdown || result.monthlyBreakdown.length === 0) {
+        table = emptyTable('No attendance history for this student.');
+      } else {
+        table = `<div class="report-table-wrap"><table class="report-table"><thead><tr>
+          <th>Month</th><th class="num">Present</th><th class="num">Absent</th><th class="num">Attendance</th>
+        </tr></thead><tbody>`;
+        result.monthlyBreakdown.forEach(m => {
+          const monthStr = new Date(m.Month + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+          table += `<tr>
+            <td class="strong">${escape(monthStr)}</td>
+            <td class="num" style="color:#059669;font-weight:700">${m.Present}</td>
+            <td class="num" style="color:#dc2626;font-weight:700">${m.Absent}</td>
+            <td class="num">${pctPill(m.Percent)}</td>
+          </tr>`;
+        });
+        table += `</tbody></table></div>`;
+      }
+      
+      document.getElementById('report-output').innerHTML = reportShell(
+        'Student Attendance Summary — ' + s.StudentName,
+        s.RegistrationNumber + ' · ' + s.Course,
+        sum ? [
+          { label: 'Total Classes', value: sum.TotalClasses },
+          { label: 'Present', value: sum.TotalPresent, color: '#059669' },
+          { label: 'Absent', value: sum.TotalAbsent, color: '#dc2626' },
+          { label: 'Attendance', value: sum.AttendancePercent + '%', color: sum.AttendancePercent >= 75 ? '#059669' : '#d97706' }
+        ] : [],
+        table
+      );
+    }
+    
+    // --- Class Book ---
+    function renderClassBook(result) {
+      if (!result || !result.success) return showError(result?.error || 'Failed');
+      
+      const info = result.classInfo;
+      const students = result.students;
+      const dates = result.classDates;
+      
+      let table;
+      if (students.length === 0) {
+        table = emptyTable('No students in this batch.');
+      } else {
+        table = `<div class="report-table-wrap"><table class="report-table"><thead><tr>
+          <th>Reg #</th><th>Student</th>`;
+        dates.forEach(d => {
+          const dt = new Date(d);
+          table += `<th class="num">${dt.getDate()}/${dt.getMonth()+1}</th>`;
+        });
+        table += `<th class="num">P</th><th class="num">A</th><th class="num">%</th></tr></thead><tbody>`;
+        
+        students.forEach(s => {
+          table += `<tr>
+            <td style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-muted)">${escape(s.RegistrationNumber)}</td>
+            <td class="strong">${escape(s.StudentName)}</td>`;
+          dates.forEach(d => {
+            const v = s.attendance[d];
+            const sym = v === 'Present' ? '<span style="color:#059669;font-weight:700">P</span>' 
+              : v === 'Absent' ? '<span style="color:#dc2626;font-weight:700">A</span>' 
+              : '<span style="color:#cbd5e1">·</span>';
+            table += `<td class="num">${sym}</td>`;
+          });
+          table += `<td class="num" style="color:#059669;font-weight:700">${s.TotalPresent}</td>
+            <td class="num" style="color:#dc2626;font-weight:700">${s.TotalAbsent}</td>
+            <td class="num">${pctPill(s.AttendancePercent)}</td></tr>`;
+        });
+        table += `</tbody></table></div>`;
+      }
+      
+      document.getElementById('report-output').innerHTML = reportShell(
+        'Class Book — ' + info.BatchName,
+        info.Course + ' · ' + info.TeacherName + ' · ' + info.BranchName,
+        [
+          { label: 'Students', value: students.length },
+          { label: 'Classes Done', value: result.summary.ClassesConducted },
+          { label: 'Hours', value: result.summary.HoursCompleted + 'h' },
+          { label: 'Progress', value: result.summary.ProgressPercent + '%' }
+        ],
+        table
+      );
+    }
+    
+    // ===== HELPERS =====
+    function pctPill(pct) {
+      const cls = pct >= 75 ? 'pct-good' : pct >= 50 ? 'pct-warn' : 'pct-bad';
+      return `<span class="pct-pill ${cls}">${pct}%</span>`;
+    }
+    
+    function escape(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    
+    // ===== CSV EXPORT =====
+    function exportReportCSV() {
+      const table = document.querySelector('.report-table');
+      if (!table) {
+        showToast('No table data to export', 'warning');
+        return;
+      }
+      
+      let csv = '';
+      const titleEl = document.querySelector('.report-header-info h3');
+      const subEl = document.querySelector('.report-header-info p');
+      if (titleEl) csv += titleEl.textContent + '\n';
+      if (subEl) csv += subEl.textContent + '\n\n';
+      
+      // Headers
+      const headers = Array.from(table.querySelectorAll('thead th')).map(th => 
+        '"' + th.textContent.trim().replace(/"/g, '""') + '"');
+      csv += headers.join(',') + '\n';
+      
+      // Rows
+      table.querySelectorAll('tbody tr').forEach(tr => {
+        const cells = Array.from(tr.querySelectorAll('td')).map(td => 
+          '"' + td.textContent.trim().replace(/"/g, '""') + '"');
+        csv += cells.join(',') + '\n';
+      });
+      
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `DMI_Report_${currentReport}_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Report downloaded as CSV', 'success');
+    }
+    
+    // ===== INIT =====
+    (async function init() {
+      await loadRefData();
+      renderFilters();
+    })();
+  </script>
+</body>
+</html>
