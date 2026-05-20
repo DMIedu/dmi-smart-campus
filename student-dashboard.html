@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Dashboard — DMI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    
+    /* Hero card */
+    .hero-card {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e2a5e 60%, #0f1729 100%);
+      color: white;
+      border-radius: 20px;
+      padding: 2rem 1.75rem;
+      margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .hero-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -10%;
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle, rgba(245,158,11,0.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    
+    .hero-card::after {
+      content: '';
+      position: absolute;
+      bottom: -30%;
+      left: -10%;
+      width: 240px;
+      height: 240px;
+      background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .hero-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 2rem;
+      color: white;
+      flex-shrink: 0;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    }
+    
+    .hero-text { flex: 1; min-width: 240px; }
+    
+    .hero-greeting {
+      font-size: 0.875rem;
+      opacity: 0.7;
+      margin-bottom: 0.25rem;
+    }
+    
+    .hero-name {
+      font-family: var(--font-display);
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.25rem;
+    }
+    
+    .hero-meta {
+      font-size: 0.9375rem;
+      opacity: 0.85;
+    }
+    
+    .hero-reg {
+      display: inline-block;
+      margin-top: 0.5rem;
+      padding: 0.25rem 0.625rem;
+      background: rgba(255,255,255,0.12);
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    
+    /* Attendance hero stat (big circle) */
+    .attendance-hero {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    
+    .att-circle-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex: 1;
+      min-width: 280px;
+    }
+    
+    .att-ring {
+      width: 100px;
+      height: 100px;
+      flex-shrink: 0;
+      position: relative;
+    }
+    
+    .att-ring svg {
+      transform: rotate(-90deg);
+      width: 100%;
+      height: 100%;
+    }
+    
+    .att-ring-bg {
+      fill: none;
+      stroke: #f1f5f9;
+      stroke-width: 8;
+    }
+    
+    .att-ring-fg {
+      fill: none;
+      stroke-width: 8;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1s ease-out;
+    }
+    
+    .att-ring-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+    }
+    
+    .att-ring-number {
+      font-size: 1.5rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+    
+    .att-ring-label {
+      font-size: 0.625rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-top: 0.125rem;
+    }
+    
+    .att-detail { flex: 1; min-width: 0; }
+    
+    .att-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    .att-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.375rem 0;
+      font-size: 0.875rem;
+    }
+    
+    .att-row-label { color: var(--text-muted); }
+    .att-row-value { font-weight: 700; font-family: var(--font-mono); }
+    
+    .att-status-strip {
+      margin-top: 1rem;
+      padding: 0.625rem 0.875rem;
+      border-radius: 8px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .att-status-good {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    
+    .att-status-warn {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    
+    .att-status-bad {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    
+    /* Next class card */
+    .next-class-card {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: white;
+      border-radius: 20px;
+      padding: 1.5rem;
+      flex: 1;
+      min-width: 280px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .next-class-card::before {
+      content: '📅';
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      font-size: 6rem;
+      opacity: 0.12;
+    }
+    
+    .next-class-label {
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      opacity: 0.9;
+      margin-bottom: 0.5rem;
+    }
+    
+    .next-class-when {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      margin-bottom: 0.25rem;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .next-class-time {
+      font-size: 1rem;
+      opacity: 0.95;
+      margin-bottom: 1rem;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .next-class-batch {
+      font-size: 0.875rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255,255,255,0.2);
+      opacity: 0.95;
+      position: relative;
+      z-index: 1;
+    }
+    
+    /* Grid layouts */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    @media (max-width: 768px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+    
+    .section-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .section-title .badge { font-size: 0.6875rem; }
+    
+    /* Info card rows */
+    .info-rows { display: flex; flex-direction: column; gap: 0.25rem; }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.625rem 0;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 0.875rem;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-row-label { color: var(--text-muted); }
+    .info-row-value { font-weight: 600; text-align: right; }
+    
+    /* Recent attendance list */
+    .recent-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.625rem 0.75rem;
+      border-radius: 8px;
+      background: var(--bg);
+    }
+    
+    .recent-dot {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    
+    .recent-dot-present { background: #d1fae5; color: #065f46; }
+    .recent-dot-absent { background: #fee2e2; color: #991b1b; }
+    
+    .recent-info { flex: 1; min-width: 0; }
+    .recent-date { font-weight: 600; font-size: 0.875rem; }
+    .recent-meta { font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); }
+    
+    .recent-status {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .recent-status-present { color: #065f46; }
+    .recent-status-absent { color: #991b1b; }
+    
+    /* Progress bar */
+    .progress-wrap {
+      margin-top: 0.75rem;
+    }
+    
+    .progress-bar {
+      background: #f1f5f9;
+      height: 8px;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      background: linear-gradient(90deg, #f59e0b, #d97706);
+      height: 100%;
+      border-radius: 999px;
+      transition: width 800ms ease-out;
+    }
+    
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 0.375rem;
+    }
+    
+    /* Notification badge */
+    .notif-bell {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.875rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .notif-bell:hover { background: var(--bg); }
+    
+    .notif-badge {
+      background: #dc2626;
+      color: white;
+      font-size: 0.625rem;
+      padding: 0.125rem 0.375rem;
+      border-radius: 999px;
+      min-width: 18px;
+      text-align: center;
+    }
+    
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .logout-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.875rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .logout-btn:hover { background: var(--bg); }
+  </style>
+</head>
+<body>
+  <header class="dmi-header">
+    <div class="dmi-logo">
+      <div class="dmi-logo-mark">D</div>
+      <span>DMI Smart Campus</span>
+    </div>
+    <div class="user-pill">
+      <span style="font-size:0.8125rem;color:var(--text-muted);font-weight:600;" id="header-name">Student</span>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </header>
+  
+  <div class="container" id="loading-state">
+    <div style="text-align:center;padding:4rem 1rem;color:var(--text-muted);">
+      <div style="font-size:2rem;margin-bottom:1rem;">⏳</div>
+      Loading your dashboard...
+    </div>
+  </div>
+  
+  <div class="container" id="main-content" style="display:none">
+    <!-- Hero -->
+    <div class="hero-card fade-in">
+      <div class="hero-content">
+        <div class="hero-avatar" id="hero-avatar">S</div>
+        <div class="hero-text">
+          <div class="hero-greeting" id="greeting">Welcome back</div>
+          <div class="hero-name" id="hero-name">Student Name</div>
+          <div class="hero-meta" id="hero-meta">Course · Branch</div>
+          <div class="hero-reg" id="hero-reg">DMI-XXX-XXXX</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Attendance + Next Class -->
+    <div class="attendance-hero fade-in" style="animation-delay: 80ms">
+      <!-- Attendance ring -->
+      <div class="att-circle-card">
+        <div class="att-ring">
+          <svg viewBox="0 0 100 100">
+            <circle class="att-ring-bg" cx="50" cy="50" r="42"></circle>
+            <circle class="att-ring-fg" id="att-ring-fg" cx="50" cy="50" r="42"
+              stroke-dasharray="263.89"
+              stroke-dashoffset="263.89"
+              stroke="#10b981"></circle>
+          </svg>
+          <div class="att-ring-text">
+            <div class="att-ring-number" id="att-percent">—</div>
+            <div class="att-ring-label">Overall</div>
+          </div>
+        </div>
+        
+        <div class="att-detail">
+          <div class="att-title">My Attendance</div>
+          <div class="att-row">
+            <span class="att-row-label">Classes attended</span>
+            <span class="att-row-value" id="att-present" style="color:#059669">—</span>
+          </div>
+          <div class="att-row">
+            <span class="att-row-label">Classes missed</span>
+            <span class="att-row-value" id="att-absent" style="color:#dc2626">—</span>
+          </div>
+          <div class="att-row">
+            <span class="att-row-label">Total classes</span>
+            <span class="att-row-value" id="att-total">—</span>
+          </div>
+          
+          <div class="att-status-strip" id="att-status">
+            <span>—</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Next class -->
+      <div class="next-class-card">
+        <div class="next-class-label">Next Class</div>
+        <div class="next-class-when" id="next-when">—</div>
+        <div class="next-class-time" id="next-time">—</div>
+        <div class="next-class-batch" id="next-batch">—</div>
+      </div>
+    </div>
+    
+    <!-- Class info + Recent attendance -->
+    <div class="grid-2 fade-in" style="animation-delay: 160ms">
+      <div class="card">
+        <div class="section-title">My Class</div>
+        <div class="info-rows" id="class-info">
+          <div class="empty-state">No class assigned yet.</div>
+        </div>
+        
+        <div class="progress-wrap" id="progress-wrap" style="display:none">
+          <div class="progress-label">
+            <span>Course Progress</span>
+            <span id="progress-percent">—</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="section-title">
+          Recent Attendance
+          <a href="#" class="notif-bell" id="notif-bell" style="display:none">
+            🔔 Notifications
+            <span class="notif-badge" id="notif-count">0</span>
+          </a>
+        </div>
+        <div class="recent-list" id="recent-list">
+          <div class="empty-state">No attendance recorded yet.</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Profile details -->
+    <div class="card fade-in" style="animation-delay: 240ms">
+      <div class="section-title">Profile Details</div>
+      <div class="grid-2" style="margin-bottom:0;gap:2rem;">
+        <div class="info-rows">
+          <div class="info-row">
+            <span class="info-row-label">Phone</span>
+            <span class="info-row-value" id="profile-phone">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-row-label">Email</span>
+            <span class="info-row-value" id="profile-email">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-row-label">Course</span>
+            <span class="info-row-value" id="profile-course">—</span>
+          </div>
+        </div>
+        <div class="info-rows">
+          <div class="info-row">
+            <span class="info-row-label">Branch</span>
+            <span class="info-row-value" id="profile-branch">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-row-label">Registration #</span>
+            <span class="info-row-value" id="profile-reg" style="font-family:var(--font-mono);font-size:0.8125rem">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-row-label">Status</span>
+            <span class="info-row-value"><span class="badge badge-success">Active</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="js/api.js"></script>
+  <script>
+    const user = requireAuth(['student']);
+    if (!user) throw 'redirect';
+    
+    document.getElementById('header-name').textContent = user.name || 'Student';
+    
+    async function loadDashboard() {
+      const result = await apiCall('dashboardStudent');
+      
+      if (!result || !result.success) {
+        document.getElementById('loading-state').innerHTML = `
+          <div style="text-align:center;padding:4rem 1rem;color:var(--text-muted);">
+            <div style="font-size:2.5rem;margin-bottom:1rem;">⚠</div>
+            <div style="font-weight:600;color:var(--text);margin-bottom:0.5rem;">Could not load dashboard</div>
+            <div>${result?.error || 'Unknown error'}</div>
+          </div>
+        `;
+        return;
+      }
+      
+      renderDashboard(result);
+    }
+    
+    function renderDashboard(data) {
+      document.getElementById('loading-state').style.display = 'none';
+      document.getElementById('main-content').style.display = 'block';
+      
+      const s = data.student;
+      const cls = data.class;
+      const att = data.attendance;
+      const next = data.nextClass;
+      
+      // Hero
+      const firstName = (s.name || '').split(' ')[0];
+      const hour = new Date().getHours();
+      const tod = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+      document.getElementById('greeting').textContent = `${tod}, ${firstName}!`;
+      document.getElementById('hero-avatar').textContent = (s.name || '?').charAt(0).toUpperCase();
+      document.getElementById('hero-name').textContent = s.name;
+      document.getElementById('hero-meta').textContent = `${s.course} · ${s.branch}`;
+      document.getElementById('hero-reg').textContent = s.regNumber;
+      
+      // Attendance ring
+      if (att && att.totalClasses > 0) {
+        const pct = att.percent;
+        const circumference = 263.89; // 2 * PI * 42
+        const offset = circumference - (circumference * pct / 100);
+        const ring = document.getElementById('att-ring-fg');
+        setTimeout(() => ring.style.strokeDashoffset = offset, 100);
+        
+        // Color the ring based on percentage
+        const ringColor = pct >= 75 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#ef4444';
+        ring.setAttribute('stroke', ringColor);
+        
+        document.getElementById('att-percent').textContent = pct + '%';
+        document.getElementById('att-present').textContent = att.present;
+        document.getElementById('att-absent').textContent = att.absent;
+        document.getElementById('att-total').textContent = att.totalClasses;
+        
+        const statusEl = document.getElementById('att-status');
+        if (pct >= 75) {
+          statusEl.className = 'att-status-strip att-status-good';
+          statusEl.innerHTML = '✓ Great attendance — keep it up!';
+        } else if (pct >= 50) {
+          statusEl.className = 'att-status-strip att-status-warn';
+          statusEl.innerHTML = '⚠ Attendance is below target. Try to attend more classes.';
+        } else {
+          statusEl.className = 'att-status-strip att-status-bad';
+          statusEl.innerHTML = '⚠ Low attendance — please contact your teacher.';
+        }
+      } else {
+        document.getElementById('att-percent').textContent = '—';
+        document.getElementById('att-present').textContent = '0';
+        document.getElementById('att-absent').textContent = '0';
+        document.getElementById('att-total').textContent = '0';
+        document.getElementById('att-status').innerHTML = '<span>No classes attended yet.</span>';
+      }
+      
+      // Next class
+      if (next) {
+        const date = new Date(next.date);
+        const isToday = date.toDateString() === new Date().toDateString();
+        const isTomorrow = date.toDateString() === new Date(Date.now() + 86400000).toDateString();
+        
+        let when;
+        if (isToday) when = 'Today';
+        else if (isTomorrow) when = 'Tomorrow';
+        else when = next.dayName + ', ' + date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        
+        document.getElementById('next-when').textContent = when;
+        document.getElementById('next-time').textContent = next.time;
+        document.getElementById('next-batch').textContent = cls ? cls.batchName : '';
+      } else {
+        document.getElementById('next-when').textContent = 'No upcoming class';
+        document.getElementById('next-time').textContent = '—';
+        document.getElementById('next-batch').textContent = cls ? cls.batchName : 'Not enrolled';
+      }
+      
+      // Class info
+      if (cls) {
+        document.getElementById('class-info').innerHTML = `
+          <div class="info-row">
+            <span class="info-row-label">Batch</span>
+            <span class="info-row-value">${escape(cls.batchName)}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-row-label">Teacher</span>
+            <span class="info-row-value">${escape(cls.teacher)}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-row-label">Days</span>
+            <span class="info-row-value">${escape(cls.days || '').replace(/,/g, ' · ')}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-row-label">Time</span>
+            <span class="info-row-value">${escape(cls.time)}</span>
+          </div>
+        `;
+        
+        // Progress bar
+        document.getElementById('progress-wrap').style.display = 'block';
+        document.getElementById('progress-percent').textContent = cls.progress + '%';
+        setTimeout(() => {
+          document.getElementById('progress-fill').style.width = cls.progress + '%';
+        }, 300);
+      }
+      
+      // Recent attendance
+      const recent = data.recentAttendance || [];
+      if (recent.length > 0) {
+        document.getElementById('recent-list').innerHTML = recent.slice(0, 8).map(r => {
+          const isPresent = r.Status === 'Present';
+          const date = new Date(r.Date);
+          const formatted = date.toLocaleDateString('en-GB', { 
+            weekday: 'short', day: 'numeric', month: 'short' 
+          });
+          return `
+            <div class="recent-item">
+              <div class="recent-dot ${isPresent ? 'recent-dot-present' : 'recent-dot-absent'}">
+                ${isPresent ? '✓' : '✕'}
+              </div>
+              <div class="recent-info">
+                <div class="recent-date">${formatted}</div>
+                <div class="recent-meta">${r.Time || ''} · ${r.Method || 'QR'}</div>
+              </div>
+              <div class="recent-status ${isPresent ? 'recent-status-present' : 'recent-status-absent'}">
+                ${r.Status}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+      
+      // Notifications badge
+      if (data.unreadNotifications > 0) {
+        const bell = document.getElementById('notif-bell');
+        bell.style.display = 'inline-flex';
+        document.getElementById('notif-count').textContent = data.unreadNotifications;
+      }
+      
+      // Profile details
+      document.getElementById('profile-phone').textContent = s.phone || '—';
+      document.getElementById('profile-email').textContent = s.email || '—';
+      document.getElementById('profile-course').textContent = s.course || '—';
+      document.getElementById('profile-branch').textContent = s.branch || '—';
+      document.getElementById('profile-reg').textContent = s.regNumber || '—';
+    }
+    
+    function escape(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    
+    loadDashboard();
+    
+    // Auto-refresh every 60 seconds
+    setInterval(loadDashboard, 60000);
+  </script>
+</body>
+</html>
