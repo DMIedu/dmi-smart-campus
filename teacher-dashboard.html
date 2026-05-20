@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Dashboard — DMI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    
+    /* ===== LOGO HEADER ===== */
+    .dmi-header {
+      padding: 0 1.5rem;
+    }
+    
+    .logo-block {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .logo-img {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      object-fit: contain;
+      background: linear-gradient(135deg, var(--dmi-primary), var(--dmi-primary-dark));
+      padding: 4px;
+      box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2);
+    }
+    
+    .logo-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+    }
+    
+    .logo-name {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.0625rem;
+      color: var(--dmi-primary);
+      letter-spacing: -0.01em;
+    }
+    
+    .logo-tagline {
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    
+    @media (max-width: 540px) {
+      .logo-tagline { display: none; }
+    }
+    
+    /* ===== HERO ===== */
+    .hero-card {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e2a5e 60%, #0f1729 100%);
+      color: white;
+      border-radius: 20px;
+      padding: 2rem 1.75rem;
+      margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .hero-card::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      right: -10%;
+      width: 360px;
+      height: 360px;
+      background: radial-gradient(circle, rgba(245,158,11,0.18) 0%, transparent 65%);
+    }
+    
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .hero-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 2rem;
+      color: white;
+      flex-shrink: 0;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    }
+    
+    .hero-text { flex: 1; min-width: 220px; }
+    
+    .hero-greeting {
+      font-size: 0.875rem;
+      opacity: 0.7;
+      margin-bottom: 0.25rem;
+    }
+    
+    .hero-name {
+      font-family: var(--font-display);
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.25rem;
+    }
+    
+    .hero-meta {
+      font-size: 0.9375rem;
+      opacity: 0.85;
+    }
+    
+    .hero-badges {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+    }
+    
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.3125rem 0.75rem;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    
+    /* ===== STATS GRID ===== */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .stat-tile {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .stat-tile-accent {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+    }
+    
+    .stat-tile-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.125rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    .stat-label {
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.25rem;
+    }
+    
+    .stat-value {
+      font-family: var(--font-display);
+      font-size: 1.875rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    
+    .stat-suffix {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-left: 0.25rem;
+    }
+    
+    .stat-trend {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.375rem;
+      font-weight: 500;
+    }
+    
+    /* Color accents */
+    .accent-blue .stat-tile-accent { background: #3b82f6; }
+    .accent-blue .stat-tile-icon { background: #dbeafe; color: #1e40af; }
+    
+    .accent-green .stat-tile-accent { background: #10b981; }
+    .accent-green .stat-tile-icon { background: #d1fae5; color: #065f46; }
+    
+    .accent-amber .stat-tile-accent { background: #f59e0b; }
+    .accent-amber .stat-tile-icon { background: #fef3c7; color: #92400e; }
+    
+    .accent-violet .stat-tile-accent { background: #8b5cf6; }
+    .accent-violet .stat-tile-icon { background: #ede9fe; color: #5b21b6; }
+    
+    .accent-rose .stat-tile-accent { background: #f43f5e; }
+    .accent-rose .stat-tile-icon { background: #ffe4e6; color: #9f1239; }
+    
+    .accent-cyan .stat-tile-accent { background: #06b6d4; }
+    .accent-cyan .stat-tile-icon { background: #cffafe; color: #155e75; }
+    
+    /* ===== TWO COLUMN LAYOUT ===== */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    @media (max-width: 900px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+    
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+    }
+    
+    .section-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    /* ===== BATCH CARD ===== */
+    .batch-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.875rem;
+    }
+    
+    .batch-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.125rem;
+      transition: all var(--transition);
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    
+    .batch-card:hover {
+      border-color: var(--dmi-primary);
+      box-shadow: var(--shadow-card);
+      transform: translateY(-1px);
+    }
+    
+    .batch-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .batch-name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.9375rem;
+      flex: 1;
+    }
+    
+    .batch-course {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+    
+    .batch-stats {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.5rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #f1f5f9;
+    }
+    
+    @media (max-width: 560px) {
+      .batch-stats { grid-template-columns: repeat(3, 1fr); }
+    }
+    
+    .batch-stat {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .batch-stat-value {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1rem;
+      line-height: 1;
+    }
+    
+    .batch-stat-label {
+      font-size: 0.625rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-top: 0.25rem;
+    }
+    
+    .batch-progress {
+      margin-top: 0.625rem;
+    }
+    
+    .batch-progress-bar {
+      background: #f1f5f9;
+      height: 4px;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    
+    .batch-progress-fill {
+      background: linear-gradient(90deg, #1e3a8a, #3b82f6);
+      height: 100%;
+      transition: width 800ms ease-out;
+    }
+    
+    .batch-progress-text {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-top: 0.375rem;
+    }
+    
+    /* ===== UPCOMING LIST ===== */
+    .upcoming-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.625rem;
+    }
+    
+    .upcoming-row {
+      display: flex;
+      gap: 0.875rem;
+      padding: 0.75rem;
+      border-radius: 10px;
+      background: var(--bg);
+      align-items: center;
+    }
+    
+    .upcoming-date {
+      width: 52px;
+      flex-shrink: 0;
+      text-align: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.375rem 0.25rem;
+    }
+    
+    .upcoming-day {
+      font-size: 0.625rem;
+      font-weight: 700;
+      color: var(--dmi-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    
+    .upcoming-date-num {
+      font-family: var(--font-display);
+      font-size: 1.125rem;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    
+    .upcoming-info { flex: 1; min-width: 0; }
+    .upcoming-batch { font-weight: 600; font-size: 0.875rem; }
+    .upcoming-time { font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); margin-top: 0.125rem; }
+    
+    .upcoming-today-badge {
+      font-size: 0.625rem;
+      font-weight: 700;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      background: #fef3c7;
+      color: #92400e;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+    
+    /* ===== EMPTY STATE ===== */
+    .empty-state {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    .empty-icon { font-size: 2rem; margin-bottom: 0.75rem; opacity: 0.5; }
+    
+    /* ===== LATE BANNER ===== */
+    .late-banner {
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      border: 1px solid #fcd34d;
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .late-banner-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+    
+    .late-banner-text {
+      flex: 1;
+      font-size: 0.875rem;
+      color: #78350f;
+    }
+    
+    .late-banner-text strong {
+      font-weight: 800;
+    }
+    
+    /* ===== HEADER USER ===== */
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .logout-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.875rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .logout-btn:hover { background: var(--bg); }
+  </style>
+</head>
+<body>
+  <header class="dmi-header">
+    <div class="logo-block">
+      <img src="logo.png" alt="DMI" class="logo-img" id="dmi-logo" onerror="this.outerHTML='<div style=\'width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#1e3a8a,#1e2a5e);color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.25rem;\'>D</div>'">
+      <div class="logo-text">
+        <div class="logo-name">DMI Computer Education</div>
+        <div class="logo-tagline">Smart Campus</div>
+      </div>
+    </div>
+    <div class="user-pill">
+      <span style="font-size:0.8125rem;color:var(--text-muted);font-weight:600;" id="header-name">Teacher</span>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </header>
+  
+  <div class="container" id="loading-state">
+    <div style="text-align:center;padding:4rem 1rem;color:var(--text-muted);">
+      <div style="font-size:2rem;margin-bottom:1rem;">⏳</div>
+      Loading your dashboard...
+    </div>
+  </div>
+  
+  <div class="container" id="main-content" style="display:none">
+    
+    <!-- Hero -->
+    <div class="hero-card fade-in">
+      <div class="hero-content">
+        <div class="hero-avatar" id="hero-avatar">T</div>
+        <div class="hero-text">
+          <div class="hero-greeting" id="greeting">Welcome back</div>
+          <div class="hero-name" id="hero-name">Teacher Name</div>
+          <div class="hero-meta" id="hero-meta">Subject · Branch</div>
+          <div class="hero-badges" id="hero-badges"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Late banner (only if late today) -->
+    <div class="late-banner fade-in" id="late-banner" style="display:none;animation-delay:50ms">
+      <div class="late-banner-icon">⏰</div>
+      <div class="late-banner-text" id="late-banner-text">—</div>
+    </div>
+    
+    <!-- Monthly stats -->
+    <div class="stat-grid fade-in" style="animation-delay: 80ms">
+      <div class="stat-tile accent-blue">
+        <div class="stat-tile-accent"></div>
+        <div class="stat-tile-icon">📚</div>
+        <div class="stat-label">My Batches</div>
+        <div class="stat-value" id="stat-batches">0</div>
+        <div class="stat-trend" id="stat-batches-trend">Active classes</div>
+      </div>
+      
+      <div class="stat-tile accent-violet">
+        <div class="stat-tile-accent"></div>
+        <div class="stat-tile-icon">👥</div>
+        <div class="stat-label">Total Students</div>
+        <div class="stat-value" id="stat-students">0</div>
+        <div class="stat-trend">Across all batches</div>
+      </div>
+      
+      <div class="stat-tile accent-green">
+        <div class="stat-tile-accent"></div>
+        <div class="stat-tile-icon">✓</div>
+        <div class="stat-label">Units Completed</div>
+        <div class="stat-value" id="stat-units">0</div>
+        <div class="stat-trend">Across all batches</div>
+      </div>
+      
+      <div class="stat-tile accent-cyan">
+        <div class="stat-tile-accent"></div>
+        <div class="stat-tile-icon">📅</div>
+        <div class="stat-label">Days Present</div>
+        <div class="stat-value" id="stat-days">0</div>
+        <div class="stat-trend">This month</div>
+      </div>
+      
+      <div class="stat-tile accent-rose">
+        <div class="stat-tile-accent"></div>
+        <div class="stat-tile-icon">⏰</div>
+        <div class="stat-label">Late Hours</div>
+        <div class="stat-value">
+          <span id="stat-late">0</span><span class="stat-suffix">h</span>
+        </div>
+        <div class="stat-trend" id="stat-late-trend">This month</div>
+      </div>
+    </div>
+    
+    <!-- Batches + Upcoming -->
+    <div class="grid-2 fade-in" style="animation-delay: 160ms">
+      <div class="section-card">
+        <div class="section-title">
+          My Batches
+          <span class="badge badge-info" id="batches-count">0</span>
+        </div>
+        <div class="batch-list" id="batch-list">
+          <div class="empty-state">
+            <div class="empty-icon">📚</div>
+            No batches assigned yet.
+          </div>
+        </div>
+      </div>
+      
+      <div class="section-card">
+        <div class="section-title">
+          Upcoming Classes
+          <span class="badge badge-info" id="upcoming-count">0</span>
+        </div>
+        <div class="upcoming-list" id="upcoming-list">
+          <div class="empty-state">
+            <div class="empty-icon">📅</div>
+            No upcoming classes this week.
+          </div>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+  
+  <script src="js/api.js"></script>
+  <script>
+    const user = requireAuth(['teacher']);
+    if (!user) throw 'redirect';
+    
+    document.getElementById('header-name').textContent = user.name || 'Teacher';
+    
+    // Today's stats cache (used to calc "today" data per batch)
+    let todayPresentByBatch = {};
+    
+    async function loadDashboard() {
+      // Main dashboard data
+      const result = await apiCall('dashboardTeacher');
+      
+      if (!result || !result.success) {
+        document.getElementById('loading-state').innerHTML = `
+          <div style="text-align:center;padding:4rem 1rem;color:var(--text-muted);">
+            <div style="font-size:2.5rem;margin-bottom:1rem;">⚠</div>
+            <div style="font-weight:600;color:var(--text);margin-bottom:0.5rem;">Could not load dashboard</div>
+            <div>${result?.error || 'Unknown error'}</div>
+          </div>
+        `;
+        return;
+      }
+      
+      // Also fetch teacher attendance to calculate "late hours"
+      const attResult = await apiCall('getTeacherAttendance', { 
+        TeacherID: user.userId 
+      });
+      
+      // Also fetch today's attendance for per-batch "today present" counts
+      const dailyResult = await apiCall('reportDailyAttendance');
+      
+      renderDashboard(result, attResult, dailyResult);
+    }
+    
+    function renderDashboard(data, attData, dailyData) {
+      document.getElementById('loading-state').style.display = 'none';
+      document.getElementById('main-content').style.display = 'block';
+      
+      const t = data.teacher;
+      const stats = data.stats;
+      const batches = data.batches || [];
+      const upcoming = data.upcomingClasses || [];
+      
+      // Hero
+      const firstName = (t.name || '').split(' ')[0];
+      const hour = new Date().getHours();
+      const tod = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+      document.getElementById('greeting').textContent = `${tod}, ${firstName}!`;
+      document.getElementById('hero-avatar').textContent = (t.name || '?').charAt(0).toUpperCase();
+      document.getElementById('hero-name').textContent = t.name;
+      document.getElementById('hero-meta').textContent = `${t.subject || 'Teacher'} · ${t.branch || ''}`;
+      
+      // Hero badges
+      const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+      document.getElementById('hero-badges').innerHTML = `
+        <span class="hero-badge">📅 ${today}</span>
+        <span class="hero-badge">🏫 ${escape(t.branch || '—')}</span>
+      `;
+      
+      // ===== CALCULATE LATE HOURS =====
+      // Find days teacher was late (arrived after class start time)
+      // Heuristic: if arrival > 09:00 it's potentially late
+      let lateHours = 0;
+      let lateDays = 0;
+      let totalLateMins = 0;
+      let todayLate = null;
+      const todayStr = new Date().toISOString().split('T')[0];
+      const thisMonth = todayStr.substring(0, 7);
+      
+      if (attData && attData.success && attData.records) {
+        attData.records.forEach(r => {
+          const recDate = String(r.Date).substring(0, 10);
+          if (!recDate.startsWith(thisMonth)) return;
+          
+          const arrival = String(r.ArrivalTime || '');
+          if (!arrival) return;
+          
+          // Parse arrival time
+          const [hh, mm] = arrival.split(':').map(n => parseInt(n));
+          if (isNaN(hh)) return;
+          
+          // Standard class start = 07:30 (configurable - using this as default)
+          // Late if arrived after 07:45 (15 min grace)
+          const classStartMins = 7 * 60 + 30;
+          const arrivalMins = hh * 60 + (mm || 0);
+          const graceMins = 15;
+          
+          if (arrivalMins > classStartMins + graceMins) {
+            const lateMins = arrivalMins - classStartMins;
+            totalLateMins += lateMins;
+            lateDays++;
+            
+            if (recDate === todayStr) {
+              todayLate = lateMins;
+            }
+          }
+        });
+        
+        lateHours = Math.round((totalLateMins / 60) * 10) / 10;
+      }
+      
+      // Show late banner if late today
+      if (todayLate !== null && todayLate > 0) {
+        const banner = document.getElementById('late-banner');
+        banner.style.display = 'flex';
+        document.getElementById('late-banner-text').innerHTML = 
+          `You arrived <strong>${todayLate} minutes late</strong> today. Try to arrive earlier tomorrow.`;
+      }
+      
+      // ===== STATS =====
+      document.getElementById('stat-batches').textContent = stats.assignedBatches;
+      document.getElementById('stat-students').textContent = stats.totalStudents;
+      document.getElementById('stat-units').textContent = stats.unitsCompleted;
+      document.getElementById('stat-days').textContent = stats.monthDaysPresent;
+      document.getElementById('stat-late').textContent = lateHours;
+      
+      // Trends
+      document.getElementById('stat-batches-trend').textContent = 
+        stats.assignedBatches === 0 ? 'No batches yet' : `${stats.assignedBatches} active class${stats.assignedBatches === 1 ? '' : 'es'}`;
+      
+      document.getElementById('stat-late-trend').textContent = 
+        lateDays === 0 ? 'Always on time!' : `${lateDays} late day${lateDays === 1 ? '' : 's'} this month`;
+      
+      // ===== BUILD TODAY-PRESENT MAP =====
+      // Group today's attendance records by batch
+      todayPresentByBatch = {};
+      if (dailyData && dailyData.success && dailyData.records) {
+        dailyData.records.forEach(r => {
+          if (r.Status === 'Present') {
+            // We need to map this back to GroupClassID
+            // The daily report doesn't include it directly, so use batch name
+            const key = r.BatchName || '';
+            todayPresentByBatch[key] = (todayPresentByBatch[key] || 0) + 1;
+          }
+        });
+      }
+      
+      // ===== BATCHES =====
+      document.getElementById('batches-count').textContent = batches.length;
+      
+      if (batches.length === 0) {
+        document.getElementById('batch-list').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">📚</div>
+            No batches assigned yet.<br>
+            Contact reception to be assigned to a class.
+          </div>
+        `;
+      } else {
+        // For each batch, fetch student count + full class details
+        Promise.all(batches.map(async (b) => {
+          const bs = await apiCall('getBatchStudents', { GroupClassID: b.GroupClassID });
+          b._studentCount = (bs && bs.success) ? bs.count : 0;
+          b._todayPresent = todayPresentByBatch[b.BatchName] || 0;
+          
+          // Fetch full class info for ClassesConducted + UnitsCompleted
+          const gc = await apiCall('getGroupClass', { GroupClassID: b.GroupClassID });
+          if (gc && gc.success && gc.groupClass) {
+            b.ClassesConducted = gc.groupClass.ClassesConducted || 0;
+            b.UnitsCompleted = gc.groupClass.UnitsCompleted || 0;
+            b.Progress = gc.groupClass.ProgressPercent || b.Progress || 0;
+          }
+          return b;
+        })).then(enriched => {
+          renderBatches(enriched);
+        });
+      }
+      
+      // ===== UPCOMING =====
+      document.getElementById('upcoming-count').textContent = upcoming.length;
+      
+      if (upcoming.length === 0) {
+        document.getElementById('upcoming-list').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">📅</div>
+            No upcoming classes this week.
+          </div>
+        `;
+      } else {
+        document.getElementById('upcoming-list').innerHTML = upcoming.map(u => {
+          const date = new Date(u.date);
+          const day = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][date.getDay()];
+          const dayNum = date.getDate();
+          const isToday = date.toDateString() === new Date().toDateString();
+          
+          return `
+            <div class="upcoming-row">
+              <div class="upcoming-date">
+                <div class="upcoming-day">${day}</div>
+                <div class="upcoming-date-num">${dayNum}</div>
+              </div>
+              <div class="upcoming-info">
+                <div class="upcoming-batch">${escape(u.batchName)}</div>
+                <div class="upcoming-time">${escape(u.course)} · ${escape(u.time)}</div>
+              </div>
+              ${isToday ? '<span class="upcoming-today-badge">Today</span>' : ''}
+            </div>
+          `;
+        }).join('');
+      }
+    }
+    
+    function renderBatches(batches) {
+      document.getElementById('batch-list').innerHTML = batches.map(b => {
+        const enrolled = b._studentCount || 0;
+        const todayPresent = b._todayPresent || 0;
+        // Present % = today present / enrolled
+        const presentPct = enrolled > 0 ? Math.round((todayPresent / enrolled) * 100) : 0;
+        const pctColor = presentPct >= 75 ? '#059669' : presentPct >= 50 ? '#d97706' : '#dc2626';
+        
+        return `
+        <a class="batch-card" href="class-book.html?class=${b.GroupClassID}">
+          <div class="batch-card-header">
+            <div class="batch-name">${escape(b.BatchName)}</div>
+            <span class="badge badge-info">${escape(b.Days || '').replace(/,/g, '·')}</span>
+          </div>
+          <div class="batch-course">${escape(b.Course)} · ${escape(b.Time)}</div>
+          
+          <div class="batch-stats">
+            <div class="batch-stat">
+              <div class="batch-stat-value">${enrolled}</div>
+              <div class="batch-stat-label">Enrolled</div>
+            </div>
+            <div class="batch-stat">
+              <div class="batch-stat-value" style="color:#059669">${todayPresent}</div>
+              <div class="batch-stat-label">Present Today</div>
+            </div>
+            <div class="batch-stat">
+              <div class="batch-stat-value" style="color:${pctColor}">${presentPct}<span style="font-size:0.625rem">%</span></div>
+              <div class="batch-stat-label">Present %</div>
+            </div>
+            <div class="batch-stat">
+              <div class="batch-stat-value">${b.ClassesConducted || 0}</div>
+              <div class="batch-stat-label">Classes Done</div>
+            </div>
+            <div class="batch-stat">
+              <div class="batch-stat-value">${b.UnitsCompleted || 0}</div>
+              <div class="batch-stat-label">Units</div>
+            </div>
+          </div>
+          
+          <div class="batch-progress">
+            <div class="batch-progress-bar">
+              <div class="batch-progress-fill" style="width:${b.Progress || 0}%"></div>
+            </div>
+            <div class="batch-progress-text">
+              <span>Course completion</span>
+              <span>${b.Progress || 0}%</span>
+            </div>
+          </div>
+        </a>
+      `;
+      }).join('');
+    }
+    
+    function escape(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    
+    loadDashboard();
+    setInterval(loadDashboard, 60000); // refresh every minute
+  </script>
+</body>
+</html>
