@@ -602,17 +602,21 @@
     
     // Load the class book matrix
     async function loadClassBook() {
-      const classId = document.getElementById('class-select').value;
+      const selectEl = document.getElementById('class-select');
+      // Read value from the selected option directly (most reliable)
+      const classId = selectEl.options[selectEl.selectedIndex] 
+        ? selectEl.options[selectEl.selectedIndex].value 
+        : selectEl.value;
       const mainContent = document.getElementById('main-content');
       
-      if (!classId) {
+      if (!classId || classId.trim() === '') {
         mainContent.innerHTML = '';
         return;
       }
       
       mainContent.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div>Loading class book...</div></div>';
       
-      const result = await apiCall('getClassBook', { GroupClassID: classId });
+      const result = await apiCall('getClassBook', { GroupClassID: classId.trim() });
       
       if (!result || !result.success) {
         mainContent.innerHTML = `
