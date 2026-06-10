@@ -229,6 +229,53 @@
     
     .book-table tbody tr:hover td { background: #f8fafc; }
     
+    /* Daily totals footer row */
+    .book-table tfoot {
+      position: sticky;
+      bottom: 0;
+      z-index: 8;
+    }
+    
+    .book-table tfoot tr.totals-row td {
+      background: #f1f5f9;
+      border-top: 2px solid #1e3a8a;
+      border-bottom: none;
+      font-weight: 700;
+      padding: 0.75rem 0.5rem;
+    }
+    
+    .book-table tfoot tr.totals-row td.fixed-col {
+      background: #f1f5f9;
+      font-family: var(--font-display);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #1e3a8a;
+    }
+    
+    .day-total {
+      display: inline-flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 1px;
+      padding: 0.25rem 0.375rem;
+      border-radius: 6px;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 0.9375rem;
+      min-width: 32px;
+    }
+    
+    .day-total-sub {
+      font-size: 0.625rem;
+      font-weight: 600;
+      opacity: 0.7;
+    }
+    
+    .day-total-good { background: #d1fae5; color: #065f46; }
+    .day-total-warn { background: #fef3c7; color: #92400e; }
+    .day-total-bad { background: #fee2e2; color: #991b1b; }
+    
     /* Attendance cells */
     .att-cell {
       width: 40px;
@@ -654,7 +701,7 @@
             </div>
             <div>
               <div class="info-stat-label">Time</div>
-              <div class="info-stat-value">${escape(info.Time)}</div>
+              <div class="info-stat-value">${formatClassTime(info)}</div>
             </div>
             <div>
               <div class="info-stat-label">Students</div>
@@ -737,7 +784,39 @@
           html += `</tr>`;
         });
         
-        html += `</tbody></table></div></div>`;
+        // ===== DAILY TOTALS FOOTER ROW =====
+        // Count present students per date column
+        html += `</tbody><tfoot><tr class="totals-row">`;
+        html += `<td class="fixed-col col-reg"></td>`;
+        html += `<td class="fixed-col col-name">TOTAL PRESENT</td>`;
+        html += `<td class="fixed-col col-phone"></td>`;
+        
+        let grandTotalPresent = 0;
+        let grandTotalAbsent = 0;
+        
+        dates.forEach(d => {
+          let dayPresent = 0;
+          let dayAbsent = 0;
+          students.forEach(s => {
+            if (s.attendance[d] === 'Present') dayPresent++;
+            else if (s.attendance[d] === 'Absent') dayAbsent++;
+          });
+          const pct = students.length > 0 ? Math.round((dayPresent / students.length) * 100) : 0;
+          const totalClass = pct >= 75 ? 'day-total-good' : pct >= 50 ? 'day-total-warn' : 'day-total-bad';
+          html += `<td><div class="day-total ${totalClass}" title="${dayPresent} present, ${dayAbsent} absent">${dayPresent}<span class="day-total-sub">/${students.length}</span></div></td>`;
+          grandTotalPresent += dayPresent;
+          grandTotalAbsent += dayAbsent;
+        });
+        
+        const totalClasses = dates.length * students.length;
+        const overallPct = totalClasses > 0 ? Math.round((grandTotalPresent / totalClasses) * 100) : 0;
+        html += `<td class="total-cell" style="color:#065f46">${grandTotalPresent}</td>`;
+        html += `<td class="total-cell" style="color:#991b1b">${grandTotalAbsent}</td>`;
+        html += `<td><span class="percent-badge ${overallPct >= 75 ? 'percent-good' : overallPct >= 50 ? 'percent-warn' : 'percent-bad'}">${overallPct}%</span></td>`;
+        html += `<td></td>`;
+        html += `</tr></tfoot>`;
+        
+        html += `</table></div></div>`;
       }
       
       document.getElementById('main-content').innerHTML = html;
@@ -922,6 +1001,51 @@
     function escape(str) {
       if (str === null || str === undefined) return '';
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    
+    // Cleans up messy date-as-time strings into HH:MM – HH:MM
+    function formatClassTime(info) {
+      if (!info) return '—';
+      
+      // Try the Time field first (combined string)
+      if (info.Time && typeof info.Time === 'string' && info.Time.indexOf('GMT') === -1 && info.Time.length < 20) {
+        return info.Time;
+      }
+      
+      // Build from StartTime + EndTime
+      const start = cleanTime(info.StartTime);
+      const end = cleanTime(info.EndTime);
+      if (start && end) return start + ' – ' + end;
+      if (start) return start;
+      
+      // Try extracting from messy Time string
+      if (info.Time) {
+        const matches = String(info.Time).match(/(\d{1,2}):(\d{2})/g);
+        if (matches && matches.length >= 2) return matches[0] + ' – ' + matches[1];
+        if (matches && matches.length === 1) return matches[0];
+      }
+      
+      return '—';
+    }
+    
+    function cleanTime(t) {
+      if (!t) return '';
+      // If it's a Date object string with GMT
+      if (typeof t === 'object' || (typeof t === 'string' && t.indexOf('GMT') !== -1)) {
+        try {
+          const d = new Date(t);
+          if (!isNaN(d.getTime())) {
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mm = String(d.getMinutes()).padStart(2, '0');
+            return hh + ':' + mm;
+          }
+        } catch (e) {}
+      }
+      // If it's already HH:MM:SS or HH:MM
+      const s = String(t);
+      const match = s.match(/(\d{1,2}):(\d{2})/);
+      if (match) return match[0];
+      return s;
     }
     
     // Init
