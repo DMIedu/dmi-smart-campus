@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Students — DMI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+    
+    .back-link {
+      color: var(--text-muted); text-decoration: none; font-size: 0.875rem;
+      display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;
+    }
+    .back-link:hover { color: var(--dmi-primary); }
+    
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
+    }
+    .page-title {
+      font-family: var(--font-display); font-size: 1.75rem; font-weight: 800;
+      letter-spacing: -0.02em; margin-bottom: 0.25rem;
+    }
+    .page-subtitle { color: var(--text-muted); font-size: 0.9375rem; }
+    
+    /* ===== STATS RIBBON ===== */
+    .stats-ribbon {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden; margin-bottom: 1.5rem;
+    }
+    .stat-cell {
+      padding: 1rem 1.25rem; border-right: 1px solid var(--border);
+    }
+    .stat-cell:last-child { border-right: none; }
+    .stat-cell-label {
+      font-size: 0.6875rem; color: var(--text-muted); font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.25rem;
+    }
+    .stat-cell-value {
+      font-family: var(--font-display); font-size: 1.5rem; font-weight: 800;
+      letter-spacing: -0.02em; line-height: 1;
+    }
+    
+    /* ===== FILTER BAR ===== */
+    .filter-bar {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.25rem; margin-bottom: 1.5rem;
+    }
+    .filter-row {
+      display: grid; grid-template-columns: 2fr 1fr 1.5fr 1fr auto;
+      gap: 0.75rem; align-items: end;
+    }
+    @media (max-width: 900px) {
+      .filter-row { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 540px) {
+      .filter-row { grid-template-columns: 1fr; }
+    }
+    
+    .search-field { position: relative; }
+    .search-field .input { padding-left: 2.5rem; }
+    .search-icon {
+      position: absolute; left: 0.875rem; top: 50%;
+      transform: translateY(-50%); color: var(--text-muted);
+      pointer-events: none;
+    }
+    
+    .filter-clear {
+      font-size: 0.75rem; color: var(--dmi-primary); text-decoration: none;
+      margin-top: 0.5rem; display: inline-block; cursor: pointer;
+    }
+    .filter-clear:hover { text-decoration: underline; }
+    
+    /* ===== TABLE ===== */
+    .table-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+    }
+    
+    .table-header {
+      padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap;
+    }
+    .table-info {
+      font-size: 0.875rem; color: var(--text-muted); font-weight: 600;
+    }
+    .table-info strong { color: var(--text); }
+    
+    .pagination-controls { display: flex; gap: 0.375rem; align-items: center; }
+    .page-btn {
+      background: transparent; border: 1px solid var(--border);
+      padding: 0.375rem 0.75rem; border-radius: 6px; cursor: pointer;
+      font-size: 0.8125rem; font-weight: 600; color: var(--text);
+      transition: all 120ms;
+    }
+    .page-btn:hover:not(:disabled) { background: var(--bg); }
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .page-btn.active {
+      background: var(--dmi-primary); color: white; border-color: var(--dmi-primary);
+    }
+    
+    .table-scroll { overflow-x: auto; }
+    
+    .students-table {
+      width: 100%; border-collapse: collapse; font-size: 0.8125rem;
+      min-width: 880px;
+    }
+    .students-table th {
+      background: var(--bg); padding: 0.625rem 0.875rem; text-align: left;
+      font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--text-muted); font-weight: 700; border-bottom: 1px solid var(--border);
+      white-space: nowrap; user-select: none;
+    }
+    .students-table th.sortable { cursor: pointer; }
+    .students-table th.sortable:hover { color: var(--dmi-primary); }
+    .students-table th .sort-arrow { opacity: 0.4; margin-left: 4px; }
+    .students-table th.sorted .sort-arrow { opacity: 1; color: var(--dmi-primary); }
+    
+    .students-table td {
+      padding: 0.75rem 0.875rem; border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+    }
+    .students-table tbody tr { transition: background 100ms; }
+    .students-table tbody tr:hover { background: #f8fafc; cursor: pointer; }
+    
+    .student-name-cell { display: flex; align-items: center; gap: 0.625rem; }
+    .student-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, #1e3a8a, #1e2a5e); color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.8125rem; flex-shrink: 0;
+    }
+    .student-name { font-weight: 600; }
+    .student-meta { font-size: 0.6875rem; color: var(--text-muted); font-family: var(--font-mono); }
+    
+    .reg-cell { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); }
+    
+    .branch-pill {
+      display: inline-block; padding: 0.1875rem 0.5rem;
+      background: #eff6ff; color: #1e40af; border-radius: 5px;
+      font-size: 0.6875rem; font-weight: 700;
+    }
+    
+    .fee-pill {
+      display: inline-block; padding: 0.1875rem 0.5rem; border-radius: 5px;
+      font-size: 0.6875rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    .fee-paid { background: #d1fae5; color: #065f46; }
+    .fee-pending { background: #fef3c7; color: #92400e; }
+    .fee-overdue { background: #fee2e2; color: #991b1b; }
+    
+    .action-btns { display: flex; gap: 0.25rem; }
+    .icon-btn {
+      background: transparent; border: 1px solid var(--border);
+      width: 30px; height: 30px; border-radius: 6px;
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 120ms; color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    .icon-btn:hover { background: var(--bg); color: var(--dmi-primary); border-color: var(--dmi-primary); }
+    .icon-btn.danger:hover { color: #dc2626; border-color: #dc2626; }
+    
+    /* Empty / loading states */
+    .table-state {
+      text-align: center; padding: 4rem 1.5rem; color: var(--text-muted);
+    }
+    .state-icon { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.5; }
+    .state-title {
+      font-family: var(--font-display); font-weight: 700; font-size: 1rem;
+      color: var(--text); margin-bottom: 0.25rem;
+    }
+    
+    /* ===== EDIT DRAWER ===== */
+    .drawer-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5);
+      backdrop-filter: blur(4px); z-index: 100; display: none;
+    }
+    .drawer-overlay.active { display: block; }
+    
+    .drawer {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 480px;
+      max-width: 100vw; background: var(--surface); z-index: 101;
+      box-shadow: -10px 0 30px rgba(0,0,0,0.15);
+      transform: translateX(100%); transition: transform 250ms ease-out;
+      display: flex; flex-direction: column;
+    }
+    .drawer.active { transform: translateX(0); }
+    
+    .drawer-header {
+      padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .drawer-title {
+      font-family: var(--font-display); font-weight: 800; font-size: 1.125rem;
+      letter-spacing: -0.01em;
+    }
+    .drawer-close {
+      background: transparent; border: none; cursor: pointer;
+      font-size: 1.5rem; color: var(--text-muted); padding: 0.25rem 0.5rem;
+    }
+    .drawer-close:hover { color: var(--text); }
+    
+    .drawer-body { flex: 1; overflow-y: auto; padding: 1.5rem; }
+    
+    .drawer-footer {
+      padding: 1rem 1.5rem; border-top: 1px solid var(--border);
+      display: flex; gap: 0.5rem; justify-content: flex-end;
+    }
+    
+    .drawer-section {
+      margin-bottom: 1.25rem; padding-bottom: 1.25rem;
+      border-bottom: 1px dashed var(--border);
+    }
+    .drawer-section:last-child { border-bottom: none; }
+    
+    .drawer-section-title {
+      font-size: 0.6875rem; color: var(--text-muted); font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.75rem;
+    }
+    
+    .drawer-field { margin-bottom: 0.75rem; }
+    .drawer-field .label {
+      font-size: 0.75rem; margin-bottom: 0.25rem;
+    }
+    
+    .drawer-stat-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.5rem 0; font-size: 0.875rem;
+    }
+    .drawer-stat-label { color: var(--text-muted); }
+    .drawer-stat-value { font-weight: 600; font-family: var(--font-mono); }
+    
+    .qr-mono {
+      font-family: var(--font-mono); font-size: 0.75rem;
+      background: var(--bg); padding: 0.5rem 0.625rem; border-radius: 6px;
+      border: 1px solid var(--border); word-break: break-all;
+    }
+    
+    @media (max-width: 540px) {
+      .drawer { width: 100vw; }
+    }
+    
+    .user-pill { display: flex; align-items: center; gap: 0.75rem; }
+    .logout-btn {
+      background: transparent; border: 1px solid var(--border);
+      padding: 0.5rem 0.875rem; border-radius: 8px; cursor: pointer;
+      font-size: 0.8125rem; font-weight: 600; color: var(--text);
+    }
+    .logout-btn:hover { background: var(--bg); }
+  </style>
+</head>
+<body>
+  <header class="dmi-header">
+    <div class="dmi-logo">
+      <div class="dmi-logo-mark">D</div>
+      <span>DMI Smart Campus</span>
+    </div>
+    <div class="user-pill">
+      <span style="font-size:0.8125rem;color:var(--text-muted);font-weight:600;" id="header-name">User</span>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </header>
+  
+  <div class="container">
+    <a href="reception-dashboard.html" class="back-link">← Back to dashboard</a>
+    
+    <div class="page-header fade-in">
+      <div>
+        <h1 class="page-title">Students</h1>
+        <p class="page-subtitle">Search, filter and manage student records.</p>
+      </div>
+      <div style="display:flex;gap:0.5rem;">
+        <a href="student-register.html" class="btn btn-primary">+ Register Student</a>
+        <button class="btn btn-ghost" onclick="exportCSV()">⬇ Export CSV</button>
+      </div>
+    </div>
+    
+    <!-- Stats Ribbon -->
+    <div class="stats-ribbon fade-in" id="stats-ribbon">
+      <div class="stat-cell">
+        <div class="stat-cell-label">Total</div>
+        <div class="stat-cell-value" id="stat-total">—</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell-label">Showing</div>
+        <div class="stat-cell-value" id="stat-showing" style="color:#1e40af">—</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell-label">Fees Paid</div>
+        <div class="stat-cell-value" id="stat-paid" style="color:#059669">—</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell-label">Fees Pending</div>
+        <div class="stat-cell-value" id="stat-pending" style="color:#d97706">—</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-cell-label">Fees Overdue</div>
+        <div class="stat-cell-value" id="stat-overdue" style="color:#dc2626">—</div>
+      </div>
+    </div>
+    
+    <!-- Filter Bar -->
+    <div class="filter-bar fade-in">
+      <div class="filter-row">
+        <div class="search-field">
+          <label class="label">Search</label>
+          <span class="search-icon">🔍</span>
+          <input type="text" class="input" id="f-search" placeholder="Name, registration number, phone, or email..." oninput="onFilterChange()">
+        </div>
+        <div>
+          <label class="label">Branch</label>
+          <select class="select" id="f-branch" onchange="onFilterChange()">
+            <option value="">All branches</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Course</label>
+          <select class="select" id="f-course" onchange="onFilterChange()">
+            <option value="">All courses</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Fee Status</label>
+          <select class="select" id="f-fee" onchange="onFilterChange()">
+            <option value="">All</option>
+            <option value="Paid">Paid</option>
+            <option value="Pending">Pending</option>
+            <option value="Overdue">Overdue</option>
+          </select>
+        </div>
+        <div>
+          <button class="btn btn-ghost" onclick="clearFilters()" style="height:42px;">Clear</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Table -->
+    <div class="table-wrap">
+      <div class="table-header">
+        <div class="table-info" id="table-info">Loading students...</div>
+        <div class="pagination-controls" id="pagination"></div>
+      </div>
+      <div class="table-scroll" id="table-scroll">
+        <div class="table-state">
+          <div class="state-icon">⏳</div>
+          <div>Loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Edit Drawer -->
+  <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+  <div class="drawer" id="drawer">
+    <div class="drawer-header">
+      <div>
+        <div class="drawer-title" id="drawer-title">Student Details</div>
+        <div style="font-size:0.8125rem;color:var(--text-muted);" id="drawer-subtitle">—</div>
+      </div>
+      <button class="drawer-close" onclick="closeDrawer()">×</button>
+    </div>
+    <div class="drawer-body" id="drawer-body">
+      <!-- filled dynamically -->
+    </div>
+    <div class="drawer-footer">
+      <button class="btn btn-ghost" onclick="closeDrawer()">Cancel</button>
+      <button class="btn btn-primary" id="drawer-save-btn" onclick="saveStudent()">Save Changes</button>
+    </div>
+  </div>
+  
+  <script src="js/api.js"></script>
+  <script>
+    const user = requireAuth(['admin', 'reception']);
+    if (!user) throw 'redirect';
+    
+    document.getElementById('header-name').textContent = user.name || 'User';
+    
+    // ===== STATE =====
+    let allStudents = [];
+    let filteredStudents = [];
+    let currentPage = 1;
+    const PER_PAGE = 25;
+    let sortKey = 'StudentName';
+    let sortDir = 'asc';
+    let editingStudent = null;
+    let branches = [];
+    
+    // ===== LOAD DATA =====
+    async function loadAll() {
+      const [studentsRes, branchesRes] = await Promise.all([
+        apiCall('listStudents'),
+        apiCall('listBranches')
+      ]);
+      
+      if (!studentsRes || !studentsRes.success) {
+        document.getElementById('table-scroll').innerHTML = `
+          <div class="table-state">
+            <div class="state-icon">⚠</div>
+            <div class="state-title">Could not load students</div>
+            <div>${studentsRes?.error || 'Unknown error'}</div>
+          </div>
+        `;
+        return;
+      }
+      
+      allStudents = studentsRes.students || [];
+      branches = (branchesRes && branchesRes.success) ? branchesRes.branches : [];
+      
+      // Build branch ID → name map
+      const branchMap = {};
+      branches.forEach(b => branchMap[b.BranchID] = b.BranchName);
+      allStudents.forEach(s => {
+        s._branchName = branchMap[s.BranchID] || s.BranchID;
+      });
+      
+      // Lock to reception's branch if not admin
+      if (user.role === 'reception' && user.branchId) {
+        allStudents = allStudents.filter(s => String(s.BranchID) === String(user.branchId));
+      }
+      
+      buildBranchFilter();
+      buildCourseFilter();
+      applyFilters();
+    }
+    
+    function buildBranchFilter() {
+      const select = document.getElementById('f-branch');
+      const branchesInData = [...new Set(allStudents.map(s => s.BranchID).filter(Boolean))];
+      let opts = '<option value="">All branches</option>';
+      branchesInData.forEach(bid => {
+        const b = branches.find(x => x.BranchID === bid);
+        const name = b ? b.BranchName : bid;
+        opts += `<option value="${escape(bid)}">${escape(name)}</option>`;
+      });
+      select.innerHTML = opts;
+      
+      if (user.role === 'reception' && user.branchId) {
+        select.value = user.branchId;
+        select.disabled = true;
+      }
+    }
+    
+    function buildCourseFilter() {
+      const select = document.getElementById('f-course');
+      const courses = [...new Set(allStudents.map(s => s.Course).filter(Boolean))].sort();
+      let opts = '<option value="">All courses</option>';
+      courses.forEach(c => opts += `<option value="${escape(c)}">${escape(c)}</option>`);
+      select.innerHTML = opts;
+    }
+    
+    // ===== FILTERS =====
+    function onFilterChange() {
+      currentPage = 1;
+      applyFilters();
+    }
+    
+    function clearFilters() {
+      document.getElementById('f-search').value = '';
+      if (user.role === 'admin') document.getElementById('f-branch').value = '';
+      document.getElementById('f-course').value = '';
+      document.getElementById('f-fee').value = '';
+      currentPage = 1;
+      applyFilters();
+    }
+    
+    function applyFilters() {
+      const search = document.getElementById('f-search').value.toLowerCase().trim();
+      const branch = document.getElementById('f-branch').value;
+      const course = document.getElementById('f-course').value;
+      const fee = document.getElementById('f-fee').value;
+      
+      filteredStudents = allStudents.filter(s => {
+        if (branch && String(s.BranchID) !== branch) return false;
+        if (course && s.Course !== course) return false;
+        if (fee && (s.FeeStatus || 'Pending') !== fee) return false;
+        if (search) {
+          const haystack = [
+            s.StudentName, s.RegistrationNumber, s.PhoneNumber, s.Email, s.Course
+          ].map(v => String(v || '').toLowerCase()).join(' ');
+          if (!haystack.includes(search)) return false;
+        }
+        return true;
+      });
+      
+      // Sort
+      filteredStudents.sort((a, b) => {
+        let va = a[sortKey] || ''; let vb = b[sortKey] || '';
+        if (sortKey === '_branchName') { va = a._branchName || ''; vb = b._branchName || ''; }
+        va = String(va).toLowerCase(); vb = String(vb).toLowerCase();
+        if (va < vb) return sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+      
+      renderStats();
+      renderTable();
+    }
+    
+    function renderStats() {
+      document.getElementById('stat-total').textContent = allStudents.length;
+      document.getElementById('stat-showing').textContent = filteredStudents.length;
+      
+      let paid = 0, pending = 0, overdue = 0;
+      filteredStudents.forEach(s => {
+        const fee = s.FeeStatus || 'Pending';
+        if (fee === 'Paid') paid++;
+        else if (fee === 'Overdue') overdue++;
+        else pending++;
+      });
+      document.getElementById('stat-paid').textContent = paid;
+      document.getElementById('stat-pending').textContent = pending;
+      document.getElementById('stat-overdue').textContent = overdue;
+    }
+    
+    // ===== RENDER TABLE =====
+    function renderTable() {
+      const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PER_PAGE));
+      if (currentPage > totalPages) currentPage = totalPages;
+      
+      const start = (currentPage - 1) * PER_PAGE;
+      const end = Math.min(start + PER_PAGE, filteredStudents.length);
+      const pageStudents = filteredStudents.slice(start, end);
+      
+      // Info
+      document.getElementById('table-info').innerHTML = filteredStudents.length === 0
+        ? `<strong>0</strong> students match your filters`
+        : `Showing <strong>${start + 1}–${end}</strong> of <strong>${filteredStudents.length}</strong> ${filteredStudents.length === allStudents.length ? '' : `(filtered from ${allStudents.length})`}`;
+      
+      // Pagination
+      renderPagination(totalPages);
+      
+      // Empty state
+      if (filteredStudents.length === 0) {
+        document.getElementById('table-scroll').innerHTML = `
+          <div class="table-state">
+            <div class="state-icon">🔍</div>
+            <div class="state-title">No matches</div>
+            <div>Try adjusting your filters or search terms.</div>
+          </div>
+        `;
+        return;
+      }
+      
+      // Build table
+      const arrow = key => sortKey === key ? (sortDir === 'asc' ? '▲' : '▼') : '↕';
+      const sortClass = key => sortKey === key ? 'sortable sorted' : 'sortable';
+      
+      let html = `<table class="students-table"><thead><tr>
+        <th class="${sortClass('StudentName')}" onclick="sortBy('StudentName')">Student <span class="sort-arrow">${arrow('StudentName')}</span></th>
+        <th class="${sortClass('RegistrationNumber')}" onclick="sortBy('RegistrationNumber')">Reg # <span class="sort-arrow">${arrow('RegistrationNumber')}</span></th>
+        <th class="${sortClass('Course')}" onclick="sortBy('Course')">Course <span class="sort-arrow">${arrow('Course')}</span></th>
+        <th class="${sortClass('_branchName')}" onclick="sortBy('_branchName')">Branch <span class="sort-arrow">${arrow('_branchName')}</span></th>
+        <th>Phone</th>
+        <th class="${sortClass('FeeStatus')}" onclick="sortBy('FeeStatus')">Fee <span class="sort-arrow">${arrow('FeeStatus')}</span></th>
+        <th>Actions</th>
+      </tr></thead><tbody>`;
+      
+      pageStudents.forEach(s => {
+        const fee = s.FeeStatus || 'Pending';
+        const feeClass = fee === 'Paid' ? 'fee-paid' : fee === 'Overdue' ? 'fee-overdue' : 'fee-pending';
+        const initial = (s.StudentName || '?').charAt(0).toUpperCase();
+        
+        html += `<tr onclick="openDrawer('${escape(s.StudentID)}')">
+          <td>
+            <div class="student-name-cell">
+              <div class="student-avatar">${escape(initial)}</div>
+              <div>
+                <div class="student-name">${escape(s.StudentName || '—')}</div>
+                <div class="student-meta">${escape(s.Email || '')}</div>
+              </div>
+            </div>
+          </td>
+          <td class="reg-cell">${escape(s.RegistrationNumber || '—')}</td>
+          <td>${escape(s.Course || '—')}</td>
+          <td><span class="branch-pill">${escape(s._branchName || s.BranchID || '—')}</span></td>
+          <td style="font-family:var(--font-mono);font-size:0.75rem;">${escape(s.PhoneNumber || '—')}</td>
+          <td><span class="fee-pill ${feeClass}">${escape(fee)}</span></td>
+          <td onclick="event.stopPropagation()">
+            <div class="action-btns">
+              <button class="icon-btn" title="View / Edit" onclick="openDrawer('${escape(s.StudentID)}')">✎</button>
+              <button class="icon-btn" title="Print QR" onclick="printOneQR('${escape(s.StudentID)}')">🎫</button>
+            </div>
+          </td>
+        </tr>`;
+      });
+      
+      html += `</tbody></table>`;
+      document.getElementById('table-scroll').innerHTML = html;
+    }
+    
+    function renderPagination(totalPages) {
+      const pag = document.getElementById('pagination');
+      if (totalPages <= 1) { pag.innerHTML = ''; return; }
+      
+      let html = '';
+      html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="goToPage(${currentPage - 1})">← Prev</button>`;
+      
+      // Show first, last, current, and neighbors
+      const pages = new Set([1, totalPages, currentPage]);
+      for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+        if (i > 0 && i <= totalPages) pages.add(i);
+      }
+      const sortedPages = [...pages].sort((a, b) => a - b);
+      let last = 0;
+      sortedPages.forEach(p => {
+        if (last && p - last > 1) html += `<span style="padding:0 0.25rem;color:var(--text-muted);">…</span>`;
+        html += `<button class="page-btn ${p === currentPage ? 'active' : ''}" onclick="goToPage(${p})">${p}</button>`;
+        last = p;
+      });
+      
+      html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="goToPage(${currentPage + 1})">Next →</button>`;
+      pag.innerHTML = html;
+    }
+    
+    function goToPage(p) {
+      currentPage = p;
+      renderTable();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    function sortBy(key) {
+      if (sortKey === key) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      else { sortKey = key; sortDir = 'asc'; }
+      applyFilters();
+    }
+    
+    // ===== EDIT DRAWER =====
+    function openDrawer(studentId) {
+      const s = allStudents.find(x => String(x.StudentID) === String(studentId));
+      if (!s) return;
+      editingStudent = { ...s };
+      
+      document.getElementById('drawer-title').textContent = s.StudentName || 'Student';
+      document.getElementById('drawer-subtitle').textContent = s.RegistrationNumber || '';
+      
+      document.getElementById('drawer-body').innerHTML = `
+        <div class="drawer-section">
+          <div class="drawer-section-title">Personal Info</div>
+          <div class="drawer-field">
+            <label class="label">Full Name</label>
+            <input type="text" class="input" id="ed-name" value="${escape(s.StudentName || '')}">
+          </div>
+          <div class="drawer-field">
+            <label class="label">Phone Number</label>
+            <input type="text" class="input" id="ed-phone" value="${escape(s.PhoneNumber || '')}">
+          </div>
+          <div class="drawer-field">
+            <label class="label">Email</label>
+            <input type="email" class="input" id="ed-email" value="${escape(s.Email || '')}">
+          </div>
+          <div class="drawer-field">
+            <label class="label">Address</label>
+            <input type="text" class="input" id="ed-address" value="${escape(s.Address || '')}">
+          </div>
+        </div>
+        
+        <div class="drawer-section">
+          <div class="drawer-section-title">Academic</div>
+          <div class="drawer-field">
+            <label class="label">Course</label>
+            <input type="text" class="input" id="ed-course" value="${escape(s.Course || '')}">
+          </div>
+          <div class="drawer-field">
+            <label class="label">Branch</label>
+            <select class="select" id="ed-branch" ${user.role === 'reception' ? 'disabled' : ''}>
+              ${branches.map(b => `<option value="${escape(b.BranchID)}" ${String(b.BranchID) === String(s.BranchID) ? 'selected' : ''}>${escape(b.BranchName)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="drawer-field">
+            <label class="label">Fee Status</label>
+            <select class="select" id="ed-fee">
+              <option value="Paid" ${s.FeeStatus === 'Paid' ? 'selected' : ''}>Paid</option>
+              <option value="Pending" ${(s.FeeStatus || 'Pending') === 'Pending' ? 'selected' : ''}>Pending</option>
+              <option value="Overdue" ${s.FeeStatus === 'Overdue' ? 'selected' : ''}>Overdue</option>
+            </select>
+          </div>
+          <div class="drawer-field">
+            <label class="label">Status</label>
+            <select class="select" id="ed-status">
+              <option value="Active" ${(s.Status || 'Active') === 'Active' ? 'selected' : ''}>Active</option>
+              <option value="Inactive" ${s.Status === 'Inactive' ? 'selected' : ''}>Inactive</option>
+              <option value="Graduated" ${s.Status === 'Graduated' ? 'selected' : ''}>Graduated</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="drawer-section">
+          <div class="drawer-section-title">System Info</div>
+          <div class="drawer-stat-row">
+            <span class="drawer-stat-label">Student ID</span>
+            <span class="drawer-stat-value">${escape(s.StudentID)}</span>
+          </div>
+          <div class="drawer-stat-row">
+            <span class="drawer-stat-label">Admission Date</span>
+            <span class="drawer-stat-value">${escape(formatDate(s.AdmissionDate))}</span>
+          </div>
+          <div class="drawer-stat-row">
+            <span class="drawer-stat-label">QR Code ID</span>
+          </div>
+          <div class="qr-mono">${escape(s.QRCodeID || '—')}</div>
+        </div>
+      `;
+      
+      document.getElementById('drawer-overlay').classList.add('active');
+      document.getElementById('drawer').classList.add('active');
+    }
+    
+    function closeDrawer() {
+      document.getElementById('drawer-overlay').classList.remove('active');
+      document.getElementById('drawer').classList.remove('active');
+      editingStudent = null;
+    }
+    
+    async function saveStudent() {
+      if (!editingStudent) return;
+      
+      const btn = document.getElementById('drawer-save-btn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      
+      const updates = {
+        StudentID: editingStudent.StudentID,
+        StudentName: document.getElementById('ed-name').value.trim(),
+        PhoneNumber: document.getElementById('ed-phone').value.trim(),
+        Email: document.getElementById('ed-email').value.trim(),
+        Address: document.getElementById('ed-address').value.trim(),
+        Course: document.getElementById('ed-course').value.trim(),
+        BranchID: document.getElementById('ed-branch').value,
+        FeeStatus: document.getElementById('ed-fee').value,
+        Status: document.getElementById('ed-status').value
+      };
+      
+      const result = await apiCall('updateStudent', updates);
+      
+      btn.disabled = false;
+      btn.textContent = 'Save Changes';
+      
+      if (result && result.success) {
+        showToast('Student updated', 'success');
+        // Update local copy
+        const idx = allStudents.findIndex(s => s.StudentID === editingStudent.StudentID);
+        if (idx > -1) {
+          Object.assign(allStudents[idx], updates);
+          const branch = branches.find(b => b.BranchID === updates.BranchID);
+          allStudents[idx]._branchName = branch ? branch.BranchName : updates.BranchID;
+        }
+        closeDrawer();
+        applyFilters();
+      } else {
+        showToast(result?.error || 'Update failed', 'error');
+      }
+    }
+    
+    // ===== CSV EXPORT =====
+    function exportCSV() {
+      if (filteredStudents.length === 0) {
+        showToast('No data to export', 'warning');
+        return;
+      }
+      
+      const headers = ['Reg #', 'Name', 'Course', 'Branch', 'Phone', 'Email', 'Fee Status', 'Status', 'Admission Date', 'QR Code'];
+      let csv = headers.join(',') + '\n';
+      
+      filteredStudents.forEach(s => {
+        const row = [
+          s.RegistrationNumber, s.StudentName, s.Course, s._branchName,
+          s.PhoneNumber, s.Email, s.FeeStatus || 'Pending', s.Status || 'Active',
+          formatDate(s.AdmissionDate), s.QRCodeID
+        ].map(v => '"' + String(v || '').replace(/"/g, '""') + '"');
+        csv += row.join(',') + '\n';
+      });
+      
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `DMI_Students_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`Exported ${filteredStudents.length} students`, 'success');
+    }
+    
+    function printOneQR(studentId) {
+      window.location.href = 'qr-cards.html?student=' + encodeURIComponent(studentId);
+    }
+    
+    function escape(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    
+    // Close drawer with Escape
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeDrawer();
+    });
+    
+    // Init
+    loadAll();
+  </script>
+</body>
+</html>
