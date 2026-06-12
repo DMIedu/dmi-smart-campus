@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lab Booking — DMI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+    
+    .back-link {
+      color: var(--text-muted); text-decoration: none; font-size: 0.875rem;
+      display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;
+    }
+    .back-link:hover { color: var(--dmi-primary); }
+    
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
+    }
+    .page-title {
+      font-family: var(--font-display); font-size: 1.75rem; font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .page-subtitle { color: var(--text-muted); font-size: 0.9375rem; }
+    
+    /* ===== CONTROL BAR ===== */
+    .control-bar {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.25rem; margin-bottom: 1.5rem;
+      display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 0.875rem; align-items: end;
+    }
+    @media (max-width: 900px) {
+      .control-bar { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 540px) {
+      .control-bar { grid-template-columns: 1fr; }
+    }
+    
+    .lookup-field { position: relative; }
+    .lookup-field input { padding-left: 2.5rem; padding-right: 6rem; }
+    .lookup-icon { position: absolute; left: 0.875rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+    .lookup-actions { position: absolute; right: 0.375rem; top: 50%; transform: translateY(-50%); display: flex; gap: 0.25rem; }
+    .lookup-btn { background: transparent; border: 1px solid var(--border); padding: 0.25rem 0.5rem; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
+    .lookup-btn:hover { background: var(--bg); border-color: var(--dmi-primary); }
+    
+    /* Selected student card */
+    .student-card {
+      background: linear-gradient(135deg, #1e3a8a, #1e2a5e); color: white;
+      border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;
+      display: none;
+    }
+    .student-card.active { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+    .student-card-avatar {
+      width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display); font-weight: 800; font-size: 1.5rem;
+    }
+    .student-card-info { flex: 1; min-width: 200px; }
+    .student-card-name {
+      font-family: var(--font-display); font-weight: 800; font-size: 1.25rem;
+      letter-spacing: -0.01em;
+    }
+    .student-card-meta { font-size: 0.875rem; opacity: 0.9; margin-top: 0.125rem; }
+    .student-card-tags { display: flex; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap; }
+    .student-tag {
+      padding: 0.1875rem 0.625rem; background: rgba(255,255,255,0.18);
+      border-radius: 6px; font-size: 0.75rem; font-weight: 600;
+    }
+    .student-tag.fee-paid { background: #10b981; }
+    .student-tag.fee-pending { background: #f59e0b; }
+    .student-tag.fee-overdue { background: #ef4444; }
+    .student-card-clear {
+      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+      color: white; padding: 0.5rem 0.875rem; border-radius: 8px;
+      font-weight: 600; font-size: 0.8125rem; cursor: pointer;
+    }
+    .student-card-clear:hover { background: rgba(255,255,255,0.25); }
+    
+    /* ===== LEGEND ===== */
+    .legend {
+      display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;
+      font-size: 0.75rem; color: var(--text-muted);
+    }
+    .legend-item { display: flex; align-items: center; gap: 0.375rem; }
+    .legend-box {
+      width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--border);
+    }
+    
+    /* ===== GRID ===== */
+    .grid-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+    }
+    .grid-scroll { overflow-x: auto; }
+    
+    .lab-table {
+      border-collapse: collapse; width: 100%; min-width: 800px;
+      font-size: 0.75rem;
+    }
+    .lab-table th {
+      position: sticky; top: 0; background: var(--surface); z-index: 5;
+      padding: 0.625rem 0.5rem; text-align: center; font-weight: 700;
+      font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--text-muted); border-bottom: 2px solid var(--border);
+    }
+    .lab-table th.pc-header {
+      position: sticky; left: 0; z-index: 6; background: var(--surface);
+      box-shadow: 2px 0 5px rgba(0,0,0,0.04);
+      text-align: left; padding-left: 1rem; min-width: 80px;
+    }
+    .lab-table td.pc-label {
+      position: sticky; left: 0; z-index: 4; background: var(--surface);
+      padding: 0.5rem 1rem; font-weight: 700; font-family: var(--font-mono);
+      color: var(--text); border-bottom: 1px solid #f1f5f9;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.04);
+    }
+    .lab-table td.slot-cell {
+      padding: 0.25rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle;
+      min-width: 95px;
+    }
+    
+    .slot {
+      padding: 0.5rem 0.375rem;
+      border-radius: 6px; cursor: pointer; text-align: center;
+      transition: all 120ms; user-select: none;
+      min-height: 42px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    
+    .slot-available {
+      background: #f1f5f9; color: var(--text-muted); border: 1px dashed #cbd5e1;
+    }
+    .slot-available:hover {
+      background: #dbeafe; color: #1e40af; border-color: var(--dmi-primary);
+    }
+    .slot-available::before { content: '+ Book'; font-weight: 600; font-size: 0.75rem; }
+    
+    .slot-booked { background: #fef3c7; color: #92400e; }
+    .slot-booked:hover { filter: brightness(0.97); }
+    
+    .slot-present { background: #d1fae5; color: #065f46; }
+    .slot-absent { background: #fee2e2; color: #991b1b; }
+    .slot-blocked {
+      background: repeating-linear-gradient(45deg, #f3f4f6, #f3f4f6 4px, #e5e7eb 4px, #e5e7eb 8px);
+      color: #6b7280;
+    }
+    
+    .slot-name {
+      font-weight: 700; font-size: 0.75rem; line-height: 1.2;
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .slot-status-icon { font-size: 0.875rem; }
+    
+    .grid-empty {
+      text-align: center; padding: 4rem 1rem; color: var(--text-muted);
+    }
+    
+    /* ===== AUTOCOMPLETE DROPDOWN ===== */
+    .autocomplete-dropdown {
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; margin-top: 0.25rem; max-height: 300px;
+      overflow-y: auto; z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+      display: none;
+    }
+    .autocomplete-dropdown.active { display: block; }
+    
+    .ac-item {
+      padding: 0.625rem 1rem; cursor: pointer;
+      border-bottom: 1px solid #f1f5f9; transition: background 100ms;
+    }
+    .ac-item:hover { background: var(--bg); }
+    .ac-item:last-child { border-bottom: none; }
+    .ac-name { font-weight: 600; font-size: 0.875rem; }
+    .ac-meta { font-size: 0.6875rem; color: var(--text-muted); font-family: var(--font-mono); margin-top: 0.125rem; }
+    
+    /* ===== MODALS ===== */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px); z-index: 100;
+      display: none; align-items: center; justify-content: center; padding: 1.5rem;
+    }
+    .modal-overlay.active { display: flex; }
+    
+    .modal {
+      background: var(--surface); border-radius: 16px; max-width: 460px;
+      width: 100%; box-shadow: 0 25px 60px -15px rgba(0,0,0,0.3);
+      animation: pop-in 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+      max-height: 85vh; display: flex; flex-direction: column;
+    }
+    @keyframes pop-in {
+      from { transform: scale(0.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    
+    .modal-header {
+      padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
+    }
+    .modal-title {
+      font-family: var(--font-display); font-weight: 800; font-size: 1.125rem;
+    }
+    .modal-body { padding: 1.25rem 1.5rem; flex: 1; overflow-y: auto; }
+    .modal-footer {
+      padding: 1rem 1.5rem; border-top: 1px solid var(--border);
+      display: flex; gap: 0.5rem; justify-content: flex-end;
+    }
+    
+    .detail-grid { display: grid; grid-template-columns: auto 1fr; gap: 0.625rem 1rem; font-size: 0.875rem; }
+    .detail-grid dt { color: var(--text-muted); }
+    .detail-grid dd { font-weight: 600; }
+    
+    /* QR scanner box */
+    #qr-scanner-box {
+      width: 100%; max-width: 320px; margin: 0 auto;
+      border-radius: 12px; overflow: hidden; background: #000;
+    }
+    
+    .user-pill { display: flex; align-items: center; gap: 0.75rem; }
+    .logout-btn {
+      background: transparent; border: 1px solid var(--border);
+      padding: 0.5rem 0.875rem; border-radius: 8px; cursor: pointer;
+      font-size: 0.8125rem; font-weight: 600; color: var(--text);
+    }
+    .logout-btn:hover { background: var(--bg); }
+  </style>
+</head>
+<body>
+  <header class="dmi-header">
+    <div class="dmi-logo">
+      <div class="dmi-logo-mark">D</div>
+      <span>DMI Smart Campus</span>
+    </div>
+    <div class="user-pill">
+      <span style="font-size:0.8125rem;color:var(--text-muted);font-weight:600;" id="header-name">User</span>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </header>
+  
+  <div class="container">
+    <a href="reception-dashboard.html" class="back-link">← Back to dashboard</a>
+    
+    <div class="page-header fade-in">
+      <div>
+        <h1 class="page-title">🖥️ Lab Booking</h1>
+        <p class="page-subtitle">Book and track computer lab sessions.</p>
+      </div>
+    </div>
+    
+    <!-- Control Bar -->
+    <div class="control-bar fade-in">
+      <div>
+        <label class="label">Branch</label>
+        <select class="select" id="branch-select" onchange="loadGrid()">
+          <option value="">Loading...</option>
+        </select>
+      </div>
+      <div>
+        <label class="label">Date</label>
+        <input type="date" class="input" id="date-input" onchange="loadGrid()">
+      </div>
+      <div class="lookup-field" style="position:relative;">
+        <label class="label">Find Student</label>
+        <span class="lookup-icon" style="top:auto;bottom:0.75rem;">🔍</span>
+        <input type="text" class="input" id="lookup-input" 
+               placeholder="Name, registration, phone, or QR..." 
+               oninput="onLookupInput()" 
+               onkeypress="if(event.key==='Enter') tryLookup()">
+        <div class="lookup-actions" style="top:auto;bottom:0.5rem;">
+          <button class="lookup-btn" onclick="openQRScanner()" title="Scan QR">📷</button>
+          <button class="lookup-btn" onclick="tryLookup()" title="Search">Go</button>
+        </div>
+        <div class="autocomplete-dropdown" id="ac-dropdown"></div>
+      </div>
+      <div>
+        <button class="btn btn-ghost" onclick="loadGrid()" style="height:42px;">🔄 Refresh</button>
+      </div>
+    </div>
+    
+    <!-- Selected student card -->
+    <div class="student-card" id="student-card">
+      <div class="student-card-avatar" id="sc-avatar">?</div>
+      <div class="student-card-info">
+        <div class="student-card-name" id="sc-name">—</div>
+        <div class="student-card-meta" id="sc-meta">—</div>
+        <div class="student-card-tags" id="sc-tags"></div>
+      </div>
+      <button class="student-card-clear" onclick="clearStudent()">✕ Clear</button>
+    </div>
+    
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-item"><div class="legend-box" style="background:#f1f5f9;border-style:dashed;"></div> Available</div>
+      <div class="legend-item"><div class="legend-box" style="background:#fef3c7;"></div> Booked</div>
+      <div class="legend-item"><div class="legend-box" style="background:#d1fae5;"></div> Present</div>
+      <div class="legend-item"><div class="legend-box" style="background:#fee2e2;"></div> Absent</div>
+      <div class="legend-item"><div class="legend-box" style="background:#e5e7eb;"></div> Blocked</div>
+    </div>
+    
+    <!-- Grid -->
+    <div class="grid-wrap">
+      <div class="grid-scroll" id="grid-scroll">
+        <div class="grid-empty">
+          <div style="font-size:2.5rem;margin-bottom:1rem;opacity:0.5;">🖥️</div>
+          Select a branch and date to view the lab grid.
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Book Slot Modal -->
+  <div class="modal-overlay" id="book-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">📋 Confirm Booking</div>
+      </div>
+      <div class="modal-body">
+        <div id="book-modal-body">—</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeBookModal()">Cancel</button>
+        <button class="btn btn-primary" id="confirm-book-btn" onclick="confirmBooking()">✓ Confirm Booking</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Booking Detail Modal -->
+  <div class="modal-overlay" id="detail-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="detail-title">🟢 Booking Details</div>
+      </div>
+      <div class="modal-body">
+        <div id="detail-modal-body">—</div>
+      </div>
+      <div class="modal-footer" id="detail-modal-actions">
+        <!-- buttons rendered dynamically -->
+      </div>
+    </div>
+  </div>
+  
+  <!-- QR Scanner Modal -->
+  <div class="modal-overlay" id="qr-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">📷 Scan Student QR</div>
+      </div>
+      <div class="modal-body">
+        <div id="qr-scanner-box"></div>
+        <p style="text-align:center;margin-top:0.75rem;font-size:0.8125rem;color:var(--text-muted);">
+          Hold the student's QR card up to the camera.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeQRScanner()">Cancel</button>
+      </div>
+    </div>
+  </div>
+  
+  <script src="js/api.js"></script>
+  <script>
+    const user = requireAuth(['admin', 'reception', 'student']);
+    if (!user) throw 'redirect';
+    
+    document.getElementById('header-name').textContent = user.name || 'User';
+    
+    // ===== STATE =====
+    let currentGrid = null;
+    let selectedStudent = null;
+    let pendingBooking = null;
+    let qrScanner = null;
+    let lookupTimer = null;
+    
+    // ===== INIT =====
+    async function init() {
+      // Default date = today
+      document.getElementById('date-input').value = todayISO();
+      
+      // Load branches
+      const result = await apiCall('listBranches');
+      if (!result || !result.success) {
+        showToast('Failed to load branches', 'error');
+        return;
+      }
+      
+      const select = document.getElementById('branch-select');
+      let opts = '<option value="">Select branch...</option>';
+      result.branches.forEach(b => {
+        opts += `<option value="${escape(b.BranchID)}">${escape(b.BranchName)}</option>`;
+      });
+      select.innerHTML = opts;
+      
+      // Lock to user's branch if non-admin
+      if (user.role !== 'admin' && user.branchId) {
+        select.value = user.branchId;
+        select.disabled = true;
+        loadGrid();
+      }
+      
+      // Pre-select student if they're logged in as student
+      if (user.role === 'student') {
+        const studentResult = await apiCall('dashboardStudent');
+        if (studentResult && studentResult.success && studentResult.student) {
+          selectedStudent = {
+            StudentID: user.userId,
+            StudentName: studentResult.student.name,
+            RegistrationNumber: studentResult.student.regNumber,
+            Course: studentResult.student.course,
+            BranchID: user.branchId,
+            PhoneNumber: studentResult.student.phone,
+            FeeStatus: 'Pending'
+          };
+          renderStudentCard();
+        }
+      }
+    }
+    
+    function todayISO() {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    
+    // ===== LOAD GRID =====
+    async function loadGrid() {
+      const branchId = document.getElementById('branch-select').value;
+      const date = document.getElementById('date-input').value;
+      
+      if (!branchId || !date) {
+        document.getElementById('grid-scroll').innerHTML = `
+          <div class="grid-empty">
+            <div style="font-size:2.5rem;margin-bottom:1rem;opacity:0.5;">🖥️</div>
+            Select a branch and date to view the lab grid.
+          </div>
+        `;
+        return;
+      }
+      
+      document.getElementById('grid-scroll').innerHTML = `
+        <div class="grid-empty">
+          <div style="font-size:1.5rem;">⏳</div>
+          Loading...
+        </div>
+      `;
+      
+      const result = await apiCall('labGetGrid', { branchId, date });
+      
+      if (!result || !result.success) {
+        document.getElementById('grid-scroll').innerHTML = `
+          <div class="grid-empty">
+            <div style="font-size:2.5rem;margin-bottom:1rem;">⚠</div>
+            ${escape(result?.error || 'Failed to load grid')}
+          </div>
+        `;
+        return;
+      }
+      
+      currentGrid = result;
+      renderGrid();
+    }
+    
+    function renderGrid() {
+      const { pcs, slots, bookings } = currentGrid;
+      
+      // Map of "PC|Slot" → booking
+      const bMap = {};
+      bookings.forEach(b => {
+        bMap[b.PC + '|' + b.TimeSlot] = b;
+      });
+      
+      let html = '<table class="lab-table"><thead><tr>';
+      html += '<th class="pc-header">PC / Slot</th>';
+      slots.forEach(s => {
+        const [start, end] = s.split('-');
+        html += `<th><div style="font-weight:800;color:var(--text);">${escape(start)}</div><div style="font-size:0.625rem;opacity:0.7;">${escape(end)}</div></th>`;
+      });
+      html += '</tr></thead><tbody>';
+      
+      pcs.forEach(pc => {
+        html += `<tr><td class="pc-label">${escape(pc)}</td>`;
+        slots.forEach(s => {
+          const b = bMap[pc + '|' + s];
+          if (!b) {
+            html += `<td class="slot-cell"><div class="slot slot-available" onclick="onSlotClick('${escape(pc)}','${escape(s)}',null)"></div></td>`;
+          } else {
+            const cls = b.Status === 'Present' ? 'slot-present' :
+                        b.Status === 'Absent' ? 'slot-absent' :
+                        b.Status === 'Blocked' ? 'slot-blocked' :
+                        b.Status === 'Cancelled' ? 'slot-available' : 'slot-booked';
+            
+            const icon = b.Status === 'Present' ? '✓' :
+                         b.Status === 'Absent' ? '✕' :
+                         b.Status === 'Blocked' ? '🚫' : '';
+            
+            const label = b.Status === 'Blocked' ? 'BLOCKED' : (b.StudentName || '—').split(' ').slice(0, 2).join(' ');
+            
+            html += `<td class="slot-cell"><div class="slot ${cls}" onclick="onSlotClick('${escape(pc)}','${escape(s)}','${escape(b.BookingID)}')">
+              ${icon ? `<div class="slot-status-icon">${icon}</div>` : ''}
+              <div class="slot-name">${escape(label)}</div>
+            </div></td>`;
+          }
+        });
+        html += '</tr>';
+      });
+      
+      html += '</tbody></table>';
+      document.getElementById('grid-scroll').innerHTML = html;
+    }
+    
+    // ===== SLOT CLICK =====
+    function onSlotClick(pc, slot, bookingId) {
+      if (bookingId) {
+        showBookingDetail(bookingId);
+      } else {
+        startBooking(pc, slot);
+      }
+    }
+    
+    function startBooking(pc, slot) {
+      if (!selectedStudent) {
+        showToast('Please select a student first (search above)', 'warning');
+        document.getElementById('lookup-input').focus();
+        return;
+      }
+      
+      // Branch check
+      if (String(selectedStudent.BranchID) !== String(currentGrid.branchId)) {
+        showToast('Student belongs to a different branch', 'error');
+        return;
+      }
+      
+      pendingBooking = { pc, slot };
+      
+      const fee = selectedStudent.FeeStatus || 'Pending';
+      const feeColor = fee === 'Paid' ? '#059669' : fee === 'Overdue' ? '#dc2626' : '#d97706';
+      
+      document.getElementById('book-modal-body').innerHTML = `
+        <dl class="detail-grid">
+          <dt>🖥️ Computer</dt><dd>${escape(pc)}</dd>
+          <dt>🕐 Time Slot</dt><dd>${escape(slot)}</dd>
+          <dt>📅 Date</dt><dd>${escape(currentGrid.date)}</dd>
+          <dt>👤 Student</dt><dd>${escape(selectedStudent.StudentName)}</dd>
+          <dt>📋 Reg #</dt><dd style="font-family:var(--font-mono);font-size:0.8125rem;">${escape(selectedStudent.RegistrationNumber)}</dd>
+          <dt>📚 Course</dt><dd>${escape(selectedStudent.Course || '—')}</dd>
+          <dt>💳 Fee</dt><dd style="color:${feeColor};font-weight:700;">${escape(fee)}</dd>
+        </dl>
+        ${fee === 'Overdue' ? '<p style="margin-top:1rem;padding:0.625rem 0.875rem;background:#fee2e2;color:#991b1b;border-radius:8px;font-size:0.8125rem;">⚠️ Outstanding balance. Booking allowed but notify accounts.</p>' : ''}
+      `;
+      
+      document.getElementById('book-modal').classList.add('active');
+    }
+    
+    async function confirmBooking() {
+      if (!pendingBooking || !selectedStudent) return;
+      
+      const btn = document.getElementById('confirm-book-btn');
+      btn.disabled = true;
+      btn.textContent = 'Booking...';
+      
+      const result = await apiCall('labBook', {
+        StudentID: selectedStudent.StudentID,
+        BranchID: currentGrid.branchId,
+        PC: pendingBooking.pc,
+        TimeSlot: pendingBooking.slot,
+        Date: currentGrid.date,
+        SubModule: selectedStudent.SubModule || ''
+      });
+      
+      btn.disabled = false;
+      btn.textContent = '✓ Confirm Booking';
+      
+      if (result && result.success) {
+        showToast('Booking confirmed!', 'success');
+        closeBookModal();
+        loadGrid();
+      } else {
+        showToast(result?.error || 'Booking failed', 'error');
+      }
+    }
+    
+    function closeBookModal() {
+      document.getElementById('book-modal').classList.remove('active');
+      pendingBooking = null;
+    }
+    
+    // ===== BOOKING DETAIL =====
+    function showBookingDetail(bookingId) {
+      const b = currentGrid.bookings.find(x => x.BookingID === bookingId);
+      if (!b) return;
+      
+      const isBlocked = b.Status === 'Blocked';
+      
+      document.getElementById('detail-title').textContent = 
+        isBlocked ? '🚫 Slot Blocked' :
+        b.Status === 'Present' ? '✅ Present' :
+        b.Status === 'Absent' ? '✕ Absent' : '🟢 Booking Details';
+      
+      if (isBlocked) {
+        document.getElementById('detail-modal-body').innerHTML = `
+          <dl class="detail-grid">
+            <dt>🖥️ Computer</dt><dd>${escape(b.PC)}</dd>
+            <dt>🕐 Time Slot</dt><dd>${escape(b.TimeSlot)}</dd>
+            <dt>📅 Date</dt><dd>${escape(currentGrid.date)}</dd>
+            <dt>⏰ Blocked At</dt><dd>${escape(formatTimestamp(b.BookedAt))}</dd>
+          </dl>
+        `;
+      } else {
+        document.getElementById('detail-modal-body').innerHTML = `
+          <dl class="detail-grid">
+            <dt>🖥️ Computer</dt><dd>${escape(b.PC)}</dd>
+            <dt>🕐 Time Slot</dt><dd>${escape(b.TimeSlot)}</dd>
+            <dt>👤 Student</dt><dd>${escape(b.StudentName)}</dd>
+            <dt>📋 Reg #</dt><dd style="font-family:var(--font-mono);font-size:0.8125rem;">${escape(b.RegistrationNumber)}</dd>
+            <dt>📞 Phone</dt><dd style="font-family:var(--font-mono);font-size:0.8125rem;">${escape(b.PhoneNumber || '—')}</dd>
+            <dt>📚 Course</dt><dd>${escape(b.Course || '—')}</dd>
+            <dt>📖 Sub-Module</dt><dd>${escape(b.SubModule || '—')}</dd>
+            <dt>⏰ Booked At</dt><dd>${escape(formatTimestamp(b.BookedAt))}</dd>
+            ${b.ArrivedAt ? `<dt>✅ Arrived At</dt><dd>${escape(formatTimestamp(b.ArrivedAt))}</dd>` : ''}
+          </dl>
+        `;
+      }
+      
+      // Action buttons
+      const actions = document.getElementById('detail-modal-actions');
+      let actionHtml = '<button class="btn btn-ghost" onclick="closeDetailModal()">Close</button>';
+      
+      if (isBlocked) {
+        if (user.role !== 'student') {
+          actionHtml += `<button class="btn btn-primary" onclick="unblockSlot('${escape(b.BookingID)}')">✓ Unblock</button>`;
+        }
+      } else if (b.Status === 'Booked') {
+        if (b.PhoneNumber) {
+          actionHtml += `<a class="btn btn-ghost" href="https://wa.me/${escape(b.PhoneNumber).replace(/^0/, '94')}" target="_blank">💬 WhatsApp</a>`;
+        }
+        if (user.role !== 'student') {
+          actionHtml += `<button class="btn btn-ghost" onclick="cancelBooking('${escape(b.BookingID)}')">🗑 Cancel</button>`;
+        }
+        actionHtml += `<button class="btn btn-primary" onclick="markPresent('${escape(b.BookingID)}')">✓ Mark Present</button>`;
+      }
+      
+      actions.innerHTML = actionHtml;
+      document.getElementById('detail-modal').classList.add('active');
+    }
+    
+    function closeDetailModal() {
+      document.getElementById('detail-modal').classList.remove('active');
+    }
+    
+    async function markPresent(bookingId) {
+      const result = await apiCall('labMarkPresent', { BookingID: bookingId });
+      if (result && result.success) {
+        showToast('Marked as Present', 'success');
+        closeDetailModal();
+        loadGrid();
+      } else {
+        showToast(result?.error || 'Failed', 'error');
+      }
+    }
+    
+    async function cancelBooking(bookingId) {
+      if (!confirm('Cancel this booking?')) return;
+      const result = await apiCall('labCancel', { BookingID: bookingId });
+      if (result && result.success) {
+        showToast('Booking cancelled', 'success');
+        closeDetailModal();
+        loadGrid();
+      } else {
+        showToast(result?.error || 'Failed', 'error');
+      }
+    }
+    
+    async function unblockSlot(bookingId) {
+      const result = await apiCall('labUnblockSlot', { BookingID: bookingId });
+      if (result && result.success) {
+        showToast('Slot unblocked', 'success');
+        closeDetailModal();
+        loadGrid();
+      } else {
+        showToast(result?.error || 'Failed', 'error');
+      }
+    }
+    
+    // ===== STUDENT LOOKUP =====
+    function onLookupInput() {
+      const v = document.getElementById('lookup-input').value.trim();
+      
+      if (lookupTimer) clearTimeout(lookupTimer);
+      
+      if (v.length < 2) {
+        document.getElementById('ac-dropdown').classList.remove('active');
+        return;
+      }
+      
+      // QR codes are exact match — no autocomplete
+      if (v.startsWith('QR-')) {
+        document.getElementById('ac-dropdown').classList.remove('active');
+        return;
+      }
+      
+      // Debounced search
+      lookupTimer = setTimeout(async () => {
+        const branchId = document.getElementById('branch-select').value;
+        const result = await apiCall('labSearchStudents', { 
+          query: v,
+          branchId: branchId || undefined
+        });
+        
+        if (result && result.success && result.students.length > 0) {
+          renderAutocomplete(result.students);
+        } else {
+          document.getElementById('ac-dropdown').classList.remove('active');
+        }
+      }, 250);
+    }
+    
+    function renderAutocomplete(students) {
+      const dd = document.getElementById('ac-dropdown');
+      dd.innerHTML = students.map(s => `
+        <div class="ac-item" onclick="pickStudent('${escape(s.StudentID)}')">
+          <div class="ac-name">${escape(s.StudentName)}</div>
+          <div class="ac-meta">${escape(s.RegistrationNumber)} · ${escape(s.Course || '')} · ${escape(s.PhoneNumber || '')}</div>
+        </div>
+      `).join('');
+      dd.classList.add('active');
+    }
+    
+    async function pickStudent(studentId) {
+      document.getElementById('ac-dropdown').classList.remove('active');
+      const result = await apiCall('labLookupStudent', { 
+        query: studentId  // pickStudent passes StudentID but server tries other fields too
+      });
+      // If above doesn't find it (because StudentID isn't searched), fall back to direct
+      if (!result || !result.success) {
+        // Re-search and grab directly
+        const branchId = document.getElementById('branch-select').value;
+        const sres = await apiCall('labSearchStudents', { query: studentId, branchId });
+        if (sres && sres.success && sres.students.length > 0) {
+          const s = sres.students.find(x => x.StudentID === studentId);
+          if (s) {
+            selectedStudent = s;
+            document.getElementById('lookup-input').value = '';
+            renderStudentCard();
+            return;
+          }
+        }
+      }
+      if (result && result.success) {
+        selectedStudent = result.student;
+        document.getElementById('lookup-input').value = '';
+        renderStudentCard();
+      }
+    }
+    
+    async function tryLookup() {
+      const v = document.getElementById('lookup-input').value.trim();
+      if (!v) return;
+      
+      const branchId = document.getElementById('branch-select').value;
+      const result = await apiCall('labLookupStudent', { 
+        query: v,
+        branchId: branchId || undefined
+      });
+      
+      if (result && result.success) {
+        selectedStudent = result.student;
+        document.getElementById('lookup-input').value = '';
+        document.getElementById('ac-dropdown').classList.remove('active');
+        renderStudentCard();
+      } else {
+        showToast(result?.error || 'Student not found', 'error');
+      }
+    }
+    
+    function renderStudentCard() {
+      if (!selectedStudent) {
+        document.getElementById('student-card').classList.remove('active');
+        return;
+      }
+      
+      const s = selectedStudent;
+      document.getElementById('sc-avatar').textContent = (s.StudentName || '?').charAt(0).toUpperCase();
+      document.getElementById('sc-name').textContent = s.StudentName;
+      document.getElementById('sc-meta').textContent = `${s.RegistrationNumber} · ${s.Course || 'No course'} · ${s.PhoneNumber || ''}`;
+      
+      const fee = s.FeeStatus || 'Pending';
+      const feeClass = fee === 'Paid' ? 'fee-paid' : fee === 'Overdue' ? 'fee-overdue' : 'fee-pending';
+      document.getElementById('sc-tags').innerHTML = `
+        <span class="student-tag ${feeClass}">💳 ${escape(fee)}</span>
+        <span class="student-tag">🏢 ${escape(s.BranchID)}</span>
+      `;
+      document.getElementById('student-card').classList.add('active');
+    }
+    
+    function clearStudent() {
+      selectedStudent = null;
+      renderStudentCard();
+    }
+    
+    // ===== QR SCANNER =====
+    function openQRScanner() {
+      document.getElementById('qr-modal').classList.add('active');
+      
+      if (qrScanner) {
+        try { qrScanner.stop(); } catch (e) {}
+      }
+      
+      setTimeout(() => {
+        qrScanner = new Html5Qrcode('qr-scanner-box');
+        qrScanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1 },
+          (text) => onQRDetected(text),
+          () => {}
+        ).catch(err => {
+          document.getElementById('qr-scanner-box').innerHTML = 
+            '<div style="padding:2rem;color:white;text-align:center;"><div style="font-size:2rem;">📷</div>Camera unavailable</div>';
+        });
+      }, 100);
+    }
+    
+    async function onQRDetected(code) {
+      try { qrScanner.stop(); } catch (e) {}
+      closeQRScanner();
+      
+      if (navigator.vibrate) navigator.vibrate(50);
+      
+      const branchId = document.getElementById('branch-select').value;
+      const result = await apiCall('labLookupStudent', { query: code, branchId });
+      
+      if (result && result.success) {
+        selectedStudent = result.student;
+        renderStudentCard();
+        showToast('Student loaded: ' + result.student.StudentName, 'success');
+      } else {
+        showToast(result?.error || 'Student not found', 'error');
+      }
+    }
+    
+    function closeQRScanner() {
+      if (qrScanner) {
+        try { qrScanner.stop(); } catch (e) {}
+      }
+      document.getElementById('qr-modal').classList.remove('active');
+    }
+    
+    // ===== HELPERS =====
+    function formatTimestamp(ts) {
+      if (!ts) return '—';
+      try {
+        const d = new Date(ts);
+        if (isNaN(d.getTime())) return String(ts);
+        return d.toLocaleString('en-GB', { 
+          day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' 
+        });
+      } catch (e) {
+        return String(ts);
+      }
+    }
+    
+    function escape(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    
+    // Close dropdowns on outside click
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.lookup-field')) {
+        document.getElementById('ac-dropdown').classList.remove('active');
+      }
+    });
+    
+    // Init
+    init();
+  </script>
+</body>
+</html>
