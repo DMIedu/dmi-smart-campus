@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lab Booking — DMI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    .container { max-width: 1500px; margin: 0 auto; padding: 1.5rem; }
+    .back-link { color: var(--text-muted); text-decoration: none; font-size: 0.875rem; display: inline-flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .back-link:hover { color: var(--dmi-primary); }
+    .page-header { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .page-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.25rem; }
+    .page-subtitle { color: var(--text-muted); font-size: 0.9rem; }
+
+    .controls-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; }
+    .controls-bar .field { flex: 1; min-width: 150px; }
+    .student-count-badge { background: #eff6ff; color: #1e40af; padding: 0.5rem 0.875rem; border-radius: 8px; font-weight: 700; font-size: 0.8125rem; white-space: nowrap; }
+
+    .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 1rem; }
+    @media (max-width: 640px) { .stats-row { grid-template-columns: repeat(3, 1fr); } }
+    .stat-cell { padding: 0.875rem 1rem; border-right: 1px solid var(--border); }
+    .stat-cell:last-child { border-right: none; }
+    .stat-cell-label { font-size: 0.625rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.25rem; }
+    .stat-cell-value { font-family: var(--font-display); font-size: 1.4rem; font-weight: 800; line-height: 1; }
+
+    .legend { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem; font-size: 0.75rem; color: var(--text-muted); align-items: center; }
+    .legend-item { display: inline-flex; align-items: center; gap: 0.375rem; }
+    .legend-swatch { width: 14px; height: 14px; border-radius: 4px; }
+
+    .grid-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+    .grid-scroll { overflow: auto; max-height: 72vh; }
+
+    .lab-grid { border-collapse: collapse; font-size: 0.7rem; width: 100%; min-width: 900px; }
+    .lab-grid thead { position: sticky; top: 0; z-index: 5; }
+    .lab-grid thead th { background: var(--bg); padding: 0.4rem 0.3rem; font-weight: 700; font-size: 0.625rem; color: var(--text); border-bottom: 2px solid var(--border); text-align: center; white-space: nowrap; }
+    .lab-grid thead th .slot-count { display: block; font-size: 0.5625rem; font-weight: 600; color: var(--text-muted); margin-top: 2px; }
+    .lab-grid thead th.pc-col { position: sticky; left: 0; z-index: 6; background: var(--bg); box-shadow: 2px 0 3px rgba(0,0,0,0.04); text-align: left; padding-left: 0.625rem; min-width: 56px; }
+    .lab-grid tbody td { padding: 0.2rem; border-bottom: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; text-align: center; }
+    .lab-grid tbody td.pc-name { position: sticky; left: 0; background: var(--surface); z-index: 4; padding: 0.4rem 0.625rem; text-align: left; font-weight: 700; font-family: var(--font-mono); font-size: 0.6875rem; box-shadow: 2px 0 3px rgba(0,0,0,0.04); }
+
+    .lab-group-row td { background: linear-gradient(90deg, #1e3a8a, #2563eb); color: white; font-weight: 800; font-family: var(--font-display); font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.375rem 0.625rem; text-align: left; position: sticky; left: 0; }
+
+    .slot { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 44px; min-width: 88px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.625rem; transition: all 100ms; user-select: none; padding: 2px 4px; line-height: 1.15; }
+    .slot:hover { transform: scale(1.04); box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+    .slot-available { background: #f8fafc; color: #cbd5e1; border: 1px dashed #e2e8f0; }
+    .slot-available:hover { background: #eff6ff; color: var(--dmi-primary); border-color: var(--dmi-primary); }
+    .slot-booked { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+    .slot-present { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+    .slot-absent { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    .slot-blocked { background: #e5e7eb; color: #6b7280; cursor: not-allowed; }
+    .slot-name { font-weight: 700; font-size: 0.625rem; max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .slot-module { font-size: 0.5625rem; opacity: 0.75; max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .slot-check { font-size: 0.6875rem; }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.6); backdrop-filter: blur(4px); z-index: 100; display: none; align-items: center; justify-content: center; padding: 1rem; }
+    .modal-overlay.active { display: flex; }
+    .modal-card { background: var(--surface); border-radius: 16px; max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 60px rgba(0,0,0,0.3); animation: pop 250ms cubic-bezier(0.34,1.56,0.64,1); }
+    @keyframes pop { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: start; }
+    .modal-title { font-family: var(--font-display); font-weight: 800; font-size: 1.125rem; }
+    .modal-subtitle { font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.25rem; }
+    .modal-close { background: transparent; border: none; cursor: pointer; font-size: 1.5rem; color: var(--text-muted); padding: 0 0.5rem; }
+    .modal-body { padding: 1.25rem 1.5rem; }
+    .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border); display: flex; gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap; }
+
+    .lookup-tabs { display: flex; background: var(--bg); padding: 0.25rem; border-radius: 10px; margin-bottom: 1rem; gap: 0.25rem; }
+    .lookup-tab { flex: 1; padding: 0.5rem; border: none; background: transparent; border-radius: 7px; cursor: pointer; font-weight: 600; font-size: 0.8125rem; color: var(--text-muted); }
+    .lookup-tab.active { background: var(--surface); color: var(--dmi-primary); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+    .lookup-pane { display: none; }
+    .lookup-pane.active { display: block; }
+    #qr-reader { border-radius: 12px; overflow: hidden; background: #000; min-height: 230px; max-height: 300px; }
+
+    .search-result-list { max-height: 280px; overflow-y: auto; }
+    .search-result { display: flex; align-items: center; gap: 0.625rem; padding: 0.625rem 0.75rem; border-radius: 8px; cursor: pointer; }
+    .search-result:hover { background: var(--bg); }
+    .sr-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg,#1e3a8a,#1e2a5e); color: white; font-weight: 700; font-size: 0.875rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .sr-info { flex: 1; min-width: 0; }
+    .sr-name { font-weight: 600; font-size: 0.875rem; }
+    .sr-meta { font-size: 0.6875rem; color: var(--text-muted); font-family: var(--font-mono); }
+    .sr-branch-badge { font-size: 0.625rem; padding: 0.125rem 0.375rem; border-radius: 4px; background: #fee2e2; color: #991b1b; font-weight: 700; }
+
+    .student-card { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
+    .sc-head { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+    .sc-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg,#1e3a8a,#1e2a5e); color: white; font-weight: 800; font-size: 1.125rem; display: flex; align-items: center; justify-content: center; }
+    .sc-name-block { flex: 1; }
+    .sc-student-name { font-weight: 700; font-size: 1rem; }
+    .sc-student-reg { font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); }
+    .sc-row { display: flex; justify-content: space-between; padding: 0.375rem 0; font-size: 0.875rem; }
+    .sc-row + .sc-row { border-top: 1px dashed #e2e8f0; }
+    .sc-label { color: var(--text-muted); font-size: 0.8125rem; }
+    .sc-value { font-weight: 600; }
+    .fee-badge { display: inline-block; padding: 0.1875rem 0.5rem; border-radius: 5px; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; }
+    .fee-paid { background: #d1fae5; color: #065f46; }
+    .fee-pending { background: #fef3c7; color: #92400e; }
+    .fee-overdue { background: #fee2e2; color: #991b1b; }
+    .balance-box { text-align: right; }
+    .balance-amount { font-weight: 800; font-family: var(--font-display); font-size: 1rem; }
+
+    .modal-edit-input { width: 100%; padding: 0.5rem 0.625rem; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 0.875rem; }
+
+    .alert-strip { padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.8125rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .alert-warn { background: #fef3c7; color: #78350f; border: 1px solid #fde68a; }
+    .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+    .btn-whatsapp { background: #25d366; color: white; text-decoration: none; display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.5rem 0.875rem; border-radius: 8px; font-weight: 600; font-size: 0.8125rem; }
+    .btn-whatsapp:hover { background: #1da851; }
+
+    .user-pill { display: flex; align-items: center; gap: 0.75rem; }
+    .logout-btn { background: transparent; border: 1px solid var(--border); padding: 0.5rem 0.875rem; border-radius: 8px; cursor: pointer; font-size: 0.8125rem; font-weight: 600; }
+    .logout-btn:hover { background: var(--bg); }
+  </style>
+</head>
+<body>
+  <header class="dmi-header">
+    <div class="dmi-logo">
+      <div class="dmi-logo-mark">D</div>
+      <span>DMI Smart Campus</span>
+    </div>
+    <div class="user-pill">
+      <span style="font-size:0.8125rem;color:var(--text-muted);font-weight:600;" id="header-name">User</span>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <a href="reception-dashboard.html" class="back-link">← Back to dashboard</a>
+
+    <div class="page-header fade-in">
+      <div>
+        <h1 class="page-title">🖥️ Lab Booking</h1>
+        <p class="page-subtitle">Book computer lab slots and mark lab attendance.</p>
+      </div>
+      <div style="display:flex;gap:0.5rem;align-items:center">
+        <span class="student-count-badge" id="student-count">— students</span>
+        <button class="btn btn-primary" onclick="openQuickBook()">+ Quick Book</button>
+        <button class="btn btn-ghost" onclick="loadSlots()">🔄 Refresh</button>
+      </div>
+    </div>
+
+    <div class="controls-bar fade-in">
+      <div class="field">
+        <label class="label">📅 Date</label>
+        <input type="date" class="input" id="f-date" onchange="loadSlots()">
+      </div>
+      <div class="field">
+        <label class="label">🏢 Branch</label>
+        <select class="select" id="f-branch" onchange="loadSlots()">
+          <option value="">Loading...</option>
+        </select>
+      </div>
+      <div class="field" style="position:relative">
+        <label class="label">🔍 Quick Search</label>
+        <input type="text" class="input" id="header-search" placeholder="Type name to find & book..." oninput="onHeaderSearch()" autocomplete="off">
+        <div id="header-search-results" class="search-result-list" style="position:absolute;top:100%;left:0;right:0;background:#ffffff;border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,0.25);z-index:999;margin-top:4px;display:none;max-height:320px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <div class="stats-row fade-in">
+      <div class="stat-cell"><div class="stat-cell-label">Available</div><div class="stat-cell-value" id="s-available" style="color:#059669">—</div></div>
+      <div class="stat-cell"><div class="stat-cell-label">Booked</div><div class="stat-cell-value" id="s-booked" style="color:#1e40af">—</div></div>
+      <div class="stat-cell"><div class="stat-cell-label">Present</div><div class="stat-cell-value" id="s-present" style="color:#059669">—</div></div>
+      <div class="stat-cell"><div class="stat-cell-label">Absent</div><div class="stat-cell-value" id="s-absent" style="color:#dc2626">—</div></div>
+      <div class="stat-cell"><div class="stat-cell-label">Blocked</div><div class="stat-cell-value" id="s-blocked" style="color:#64748b">—</div></div>
+    </div>
+
+    <div class="legend">
+      <span class="legend-item"><span class="legend-swatch" style="background:#f8fafc;border:1px dashed #cbd5e1"></span>Available</span>
+      <span class="legend-item"><span class="legend-swatch" style="background:#dbeafe"></span>Booked</span>
+      <span class="legend-item"><span class="legend-swatch" style="background:#d1fae5"></span>Present ✓</span>
+      <span class="legend-item"><span class="legend-swatch" style="background:#fee2e2"></span>Absent</span>
+      <span class="legend-item"><span class="legend-swatch" style="background:#e5e7eb"></span>Blocked</span>
+      <span style="margin-left:auto">💡 Scan barcode on arrival to mark attendance · Right-click empty slot to block</span>
+    </div>
+
+    <div class="grid-wrap fade-in">
+      <div class="grid-scroll" id="grid-container">
+        <div style="padding:4rem;text-align:center;color:var(--text-muted)"><div style="font-size:2rem;margin-bottom:0.75rem">⏳</div>Loading lab grid...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOOKUP MODAL -->
+  <div class="modal-overlay" id="lookup-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div><div class="modal-title">Book Lab Slot</div><div class="modal-subtitle" id="lookup-slot-info">—</div></div>
+        <button class="modal-close" onclick="closeModal('lookup-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="lookup-tabs">
+          <button class="lookup-tab active" data-pane="qr">📷 Scan QR</button>
+          <button class="lookup-tab" data-pane="search">🔍 Search</button>
+          <button class="lookup-tab" data-pane="manual">⌨️ Manual</button>
+        </div>
+        <div class="lookup-pane active" data-pane="qr"><div id="qr-reader"></div></div>
+        <div class="lookup-pane" data-pane="search">
+          <input type="text" class="input" id="search-input" placeholder="Type name, reg # or phone..." oninput="onSearchInput()">
+          <div class="search-result-list" id="search-results" style="margin-top:0.75rem"></div>
+        </div>
+        <div class="lookup-pane" data-pane="manual">
+          <label class="label">Enter Registration # or QR Code</label>
+          <div style="display:flex;gap:0.5rem">
+            <input type="text" class="input" id="manual-input" placeholder="DCA1234 or QR-..." onkeypress="if(event.key==='Enter') manualLookup()">
+            <button class="btn btn-primary" onclick="manualLookup()">Find</button>
+          </div>
+        </div>
+        <div class="alert-strip alert-error" id="lookup-error" style="display:none;margin-top:1rem"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIRM MODAL -->
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div><div class="modal-title">Confirm Booking</div><div class="modal-subtitle" id="confirm-slot-info">—</div></div>
+        <button class="modal-close" onclick="closeModal('confirm-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="student-card" id="confirm-student">—</div>
+        <div style="margin-bottom:0.75rem">
+          <label class="label">📚 Main Course</label>
+          <input id="edit-course" class="modal-edit-input" list="courses-list" placeholder="Course" autocomplete="off">
+        </div>
+        <div style="margin-bottom:0.75rem">
+          <label class="label">📖 Sub-Module</label>
+          <input id="edit-submodule" class="modal-edit-input" placeholder="Sub-module (e.g. PowerPoint)" autocomplete="off">
+        </div>
+        <datalist id="courses-list">
+          <option>DITEC</option><option>DPCA</option><option>DOA</option><option>DMO</option><option>DWD</option>
+          <option>Diploma in English Part 1</option><option>Diploma in English Part 2</option>
+          <option>Business English</option><option>Spoken English</option><option>IELTS</option>
+          <option>A1</option><option>Foundation</option><option>Beauty</option><option>Tailoring</option>
+          <option>Cake Icing</option><option>Aari Work</option>
+        </datalist>
+        <div id="confirm-alerts"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('confirm-modal')">Cancel</button>
+        <button class="btn btn-primary" id="confirm-btn" onclick="confirmBooking()">✓ Confirm Booking</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOOKING DETAILS MODAL -->
+  <div class="modal-overlay" id="booking-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div><div class="modal-title" id="bm-title">Booking Details</div><div class="modal-subtitle" id="bm-subtitle">—</div></div>
+        <button class="modal-close" onclick="closeModal('booking-modal')">×</button>
+      </div>
+      <div class="modal-body"><div class="student-card" id="bm-student">—</div></div>
+      <div class="modal-footer" id="bm-footer"></div>
+    </div>
+  </div>
+
+  <!-- BLOCK MODAL -->
+  <div class="modal-overlay" id="block-modal">
+    <div class="modal-card" style="max-width:420px">
+      <div class="modal-header">
+        <div><div class="modal-title">Block This Slot?</div><div class="modal-subtitle" id="block-slot-info">—</div></div>
+        <button class="modal-close" onclick="closeModal('block-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1rem">Blocking prevents bookings on this PC for this slot. Click again to unblock.</p>
+        <label class="label">Reason (optional)</label>
+        <input type="text" class="input" id="block-reason" placeholder="e.g. Out for repair">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('block-modal')">Cancel</button>
+        <button class="btn btn-primary" style="background:#64748b" onclick="confirmBlock()">🚫 Block Slot</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const user = requireAuth(['admin','reception','student']);
+    if (!user) throw 'redirect';
+    document.getElementById('header-name').textContent = user.name || 'User';
+
+    let currentSlots = null, pendingSlot = null, pendingStudent = null, pendingBookingId = null, qrScanner = null;
+
+    async function init() {
+      document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+      const br = await apiCall('listBranches');
+      const select = document.getElementById('f-branch');
+      if (br && br.success) {
+        select.innerHTML = br.branches.map(b => `<option value="${escapeHtml(b.BranchID)}">${escapeHtml(b.BranchName)}</option>`).join('');
+        if (user.role !== 'admin' && user.branchId) { select.value = user.branchId; select.disabled = true; }
+      }
+      loadSlots();
+    }
+
+    async function loadSlots() {
+      const date = document.getElementById('f-date').value;
+      const branchId = document.getElementById('f-branch').value;
+      if (!date || !branchId) return;
+      document.getElementById('grid-container').innerHTML = '<div style="padding:3rem;text-align:center;color:var(--text-muted)">⏳ Loading...</div>';
+      const result = await apiCall('labGetSlots', { date, branchId });
+      if (!result || !result.success) {
+        document.getElementById('grid-container').innerHTML = '<div style="padding:3rem;text-align:center;color:#dc2626">⚠ ' + escapeHtml(result?.error || 'Failed') + '</div>';
+        return;
+      }
+      currentSlots = result;
+      renderGrid();
+      renderStats(result.summary);
+      updateStudentCount(branchId);
+    }
+
+    async function updateStudentCount(branchId) {
+      // Lightweight: ask for a broad search to count branch students
+      try {
+        const r = await apiCall('listStudents', { branchId });
+        if (r && r.success && Array.isArray(r.students)) {
+          const n = r.students.filter(s => !branchId || String(s.BranchID) === String(branchId)).length;
+          document.getElementById('student-count').textContent = n.toLocaleString() + ' students';
+        }
+      } catch (e) {}
+    }
+
+    function renderStats(s) {
+      document.getElementById('s-available').textContent = s.available;
+      document.getElementById('s-booked').textContent = s.booked;
+      document.getElementById('s-present').textContent = s.present;
+      document.getElementById('s-absent').textContent = s.absent || 0;
+      document.getElementById('s-blocked').textContent = s.blocked;
+    }
+
+    function renderGrid() {
+      const { pcs, timeSlots, slots, slotCounts, labGroups } = currentSlots;
+      let html = '<table class="lab-grid"><thead><tr><th class="pc-col">PC</th>';
+      timeSlots.forEach(ts => {
+        const c = slotCounts && slotCounts[ts] ? slotCounts[ts] : {booked:0,present:0};
+        const live = (c.booked + c.present);
+        html += `<th>${escapeHtml(ts)}<span class="slot-count">${live} booked</span></th>`;
+      });
+      html += '</tr></thead><tbody>';
+
+      const groups = labGroups && labGroups.length ? labGroups : [{name:'',start:1,end:pcs.length}];
+      groups.forEach(group => {
+        // group header row
+        if (group.name) {
+          html += `<tr class="lab-group-row"><td colspan="${timeSlots.length + 1}">${escapeHtml(group.name)} &nbsp; <span style="opacity:0.8;font-weight:600">PC ${pad2(group.start)} – PC ${pad2(group.end)}</span></td></tr>`;
+        }
+        for (let n = group.start; n <= group.end && n <= pcs.length; n++) {
+          const pc = 'PC' + n;
+          html += `<tr><td class="pc-name">${escapeHtml(pc)}</td>`;
+          timeSlots.forEach(ts => {
+            const s = slots[pc][ts];
+            const status = String(s.status).toLowerCase();
+            let inner = '', title = pc + ' · ' + ts;
+            if (status === 'available') { inner = '<span style="font-size:0.875rem">+</span>'; }
+            else if (status === 'blocked') { inner = '<span class="slot-check">🚫</span>'; title += ' · Blocked'; }
+            else {
+              const nm = s.studentName || '?';
+              const check = status === 'present' ? '<span class="slot-check">✓</span> ' : (status === 'absent' ? '<span class="slot-check">✗</span> ' : '');
+              inner = `<span class="slot-name">${check}${escapeHtml(nm)}</span>`;
+              if (s.subModule || s.course) inner += `<span class="slot-module">${escapeHtml(s.subModule || s.course)}</span>`;
+              title += ' · ' + nm + (status === 'present' ? ' (Present)' : status === 'absent' ? ' (Absent)' : ' (Booked)');
+            }
+            html += `<td><div class="slot slot-${status}" onclick="onSlotClick('${escapeAttr(pc)}','${escapeAttr(ts)}')" title="${escapeAttr(title)}">${inner}</div></td>`;
+          });
+          html += '</tr>';
+        }
+      });
+      html += '</tbody></table>';
+      document.getElementById('grid-container').innerHTML = html;
+    }
+
+    function onSlotClick(pc, timeSlot) {
+      const s = currentSlots.slots[pc][timeSlot];
+      if (s.status === 'Available') {
+        pendingSlot = { pc, timeSlot };
+        document.getElementById('lookup-slot-info').textContent = pc + ' · ' + timeSlot;
+        openModal('lookup-modal'); switchTab('qr');
+      } else if (s.status === 'Blocked') {
+        if (confirm('This slot is blocked. Unblock it?')) unblockSlot(s.bookingId);
+      } else {
+        showBookingDetails(s, pc, timeSlot);
+      }
+    }
+
+    document.querySelectorAll('.lookup-tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.pane)));
+    function switchTab(pane) {
+      document.querySelectorAll('.lookup-tab').forEach(t => t.classList.toggle('active', t.dataset.pane === pane));
+      document.querySelectorAll('.lookup-pane').forEach(p => p.classList.toggle('active', p.dataset.pane === pane));
+      document.getElementById('lookup-error').style.display = 'none';
+      if (pane === 'qr') startQR(); else stopQR();
+      if (pane === 'search') setTimeout(() => document.getElementById('search-input').focus(), 100);
+      if (pane === 'manual') setTimeout(() => document.getElementById('manual-input').focus(), 100);
+    }
+
+    function startQR() {
+      const el = document.getElementById('qr-reader'); el.innerHTML = '';
+      try {
+        qrScanner = new Html5Qrcode('qr-reader');
+        qrScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 220, height: 220 } },
+          async (decoded) => { stopQR(); await lookupStudent({ qrCode: decoded }); }, () => {}
+        ).catch(() => { el.innerHTML = '<div style="padding:2rem;text-align:center;color:white"><div style="font-size:2rem">📷</div>Camera unavailable. Use Search or Manual.</div>'; });
+      } catch (e) { el.innerHTML = '<div style="padding:2rem;text-align:center;color:white">QR unavailable</div>'; }
+    }
+    function stopQR() { if (qrScanner && qrScanner.isScanning) qrScanner.stop().catch(() => {}); }
+
+    let searchTimer;
+    function onSearchInput() {
+      clearTimeout(searchTimer);
+      const q = document.getElementById('search-input').value.trim();
+      if (q.length < 2) { document.getElementById('search-results').innerHTML = ''; return; }
+      searchTimer = setTimeout(() => doSearch(q, 'search-results', false), 250);
+    }
+
+    let headerSearchTimer;
+    function onHeaderSearch() {
+      clearTimeout(headerSearchTimer);
+      const q = document.getElementById('header-search').value.trim();
+      const box = document.getElementById('header-search-results');
+      if (q.length < 2) { box.style.display = 'none'; return; }
+      headerSearchTimer = setTimeout(() => doSearch(q, 'header-search-results', true), 250);
+    }
+
+    async function doSearch(q, targetId, isHeader) {
+      const branchId = document.getElementById('f-branch').value;
+      const r = await apiCall('labSearchStudents', { query: q, branchId, limit: 12 });
+      const list = document.getElementById(targetId);
+      if (isHeader) list.style.display = 'block';
+      if (!r || !r.success || r.students.length === 0) {
+        list.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text-muted);font-size:0.8125rem">No matches</div>';
+        return;
+      }
+      list.innerHTML = r.students.map(s => {
+        const mismatch = String(s.BranchID) !== String(branchId);
+        const safe = JSON.stringify(s).replace(/"/g, '&quot;');
+        return `<div class="search-result" data-student="${safe}" data-header="${isHeader?'1':'0'}">
+          <div class="sr-avatar">${escapeHtml((s.StudentName||'?').charAt(0).toUpperCase())}</div>
+          <div class="sr-info"><div class="sr-name">${escapeHtml(s.StudentName)}</div>
+          <div class="sr-meta">${escapeHtml(s.RegistrationNumber)} · ${escapeHtml(s.Course||'')}</div></div>
+          ${mismatch ? '<span class="sr-branch-badge">Other branch</span>' : ''}</div>`;
+      }).join('');
+      list.querySelectorAll('.search-result').forEach(el => {
+        el.addEventListener('click', () => {
+          const s = JSON.parse(el.getAttribute('data-student').replace(/&quot;/g, '"'));
+          const fromHeader = el.getAttribute('data-header') === '1';
+          if (fromHeader) {
+            document.getElementById('header-search-results').style.display = 'none';
+            document.getElementById('header-search').value = '';
+            pendingStudent = s;
+            pickSlotForStudent();
+          } else {
+            pendingStudent = s; proceedToConfirm();
+          }
+        });
+      });
+    }
+
+    // When booking from header search (no slot chosen yet) — pick first available
+    function pickSlotForStudent() {
+      if (!currentSlots) return;
+      for (const pc of currentSlots.pcs) {
+        for (const ts of currentSlots.timeSlots) {
+          if (currentSlots.slots[pc][ts].status === 'Available') {
+            pendingSlot = { pc, timeSlot: ts };
+            proceedToConfirm();
+            return;
+          }
+        }
+      }
+      showToast('No available slots', 'warning');
+    }
+
+    async function manualLookup() {
+      const v = document.getElementById('manual-input').value.trim();
+      if (!v) return;
+      const params = v.toUpperCase().startsWith('QR-') ? { qrCode: v } : { registrationNumber: v };
+      await lookupStudent(params);
+    }
+
+    async function lookupStudent(params) {
+      const branchId = document.getElementById('f-branch').value;
+      const r = await apiCall('labLookupStudent', { ...params, branchId });
+      if (!r || !r.success) {
+        const err = document.getElementById('lookup-error');
+        err.textContent = '⚠ ' + (r?.error || 'Not found'); err.style.display = 'flex';
+        return;
+      }
+      pendingStudent = r.student; proceedToConfirm();
+    }
+
+    function proceedToConfirm() {
+      closeModal('lookup-modal'); stopQR();
+      const s = pendingStudent;
+      const branchId = document.getElementById('f-branch').value;
+      const mismatch = String(s.BranchID) !== String(branchId);
+      const fee = s.FeeStatus || 'Pending';
+      const feeClass = fee === 'Paid' ? 'fee-paid' : fee === 'Overdue' ? 'fee-overdue' : 'fee-pending';
+
+      document.getElementById('confirm-slot-info').textContent = pendingSlot.pc + ' · ' + pendingSlot.timeSlot + ' · ' + document.getElementById('f-date').value;
+      document.getElementById('confirm-student').innerHTML = `
+        <div class="sc-head">
+          <div class="sc-avatar">${escapeHtml((s.StudentName||'?').charAt(0).toUpperCase())}</div>
+          <div class="sc-name-block"><div class="sc-student-name">${escapeHtml(s.StudentName)}</div><div class="sc-student-reg">${escapeHtml(s.RegistrationNumber)}</div></div>
+          <div class="balance-box"><span class="fee-badge ${feeClass}">${escapeHtml(fee)}</span>
+          ${(s.Balance && s.Balance > 0) ? `<div class="balance-amount" style="color:#dc2626">Rs ${Number(s.Balance).toLocaleString()}</div>` : ''}</div>
+        </div>
+        <div class="sc-row"><span class="sc-label">Phone</span><span class="sc-value" style="font-family:var(--font-mono);font-size:0.8125rem">${escapeHtml(s.PhoneNumber||'—')}</span></div>`;
+
+      document.getElementById('edit-course').value = s.Course || '';
+      document.getElementById('edit-submodule').value = s.SubModule || '';
+
+      let alerts = '';
+      if (mismatch) alerts += '<div class="alert-strip alert-error">🚫 Branch mismatch — student registered at ' + escapeHtml(s.BranchID) + '. Cannot book here.</div>';
+      if (fee === 'Overdue') alerts += '<div class="alert-strip alert-warn">⚠ Outstanding balance — booking allowed, notify accounts.</div>';
+      document.getElementById('confirm-alerts').innerHTML = alerts;
+      document.getElementById('confirm-btn').disabled = mismatch;
+      openModal('confirm-modal');
+    }
+
+    async function confirmBooking() {
+      const btn = document.getElementById('confirm-btn');
+      btn.disabled = true; btn.textContent = 'Booking...';
+      const r = await apiCall('labCreateBooking', {
+        date: document.getElementById('f-date').value,
+        branchId: document.getElementById('f-branch').value,
+        pc: pendingSlot.pc, timeSlot: pendingSlot.timeSlot,
+        studentId: pendingStudent.StudentID,
+        course: document.getElementById('edit-course').value.trim(),
+        subModule: document.getElementById('edit-submodule').value.trim()
+      });
+      btn.disabled = false; btn.textContent = '✓ Confirm Booking';
+      if (r && r.success) {
+        showToast('Booked: ' + pendingStudent.StudentName + ' @ ' + pendingSlot.pc, 'success');
+        closeModal('confirm-modal'); loadSlots();
+      } else { showToast(r?.error || 'Booking failed', 'error'); }
+    }
+
+    function showBookingDetails(s, pc, timeSlot) {
+      pendingBookingId = s.bookingId;
+      const statusLabel = s.status === 'Present' ? '✓ Present' : s.status === 'Absent' ? '✗ Absent' : 'Booking';
+      document.getElementById('bm-title').textContent = statusLabel;
+      document.getElementById('bm-subtitle').textContent = pc + ' · ' + timeSlot;
+
+      document.getElementById('bm-student').innerHTML = `
+        <div class="sc-head">
+          <div class="sc-avatar">${escapeHtml((s.studentName||'?').charAt(0).toUpperCase())}</div>
+          <div class="sc-name-block"><div class="sc-student-name">${escapeHtml(s.studentName)}</div><div class="sc-student-reg">${escapeHtml(s.regNumber)}</div></div>
+        </div>
+        <div class="sc-row"><span class="sc-label">Course</span><span class="sc-value">${escapeHtml(s.course || '—')}</span></div>
+        ${s.subModule ? `<div class="sc-row"><span class="sc-label">Sub-Module</span><span class="sc-value">${escapeHtml(s.subModule)}</span></div>` : ''}
+        <div class="sc-row"><span class="sc-label">Phone</span><span class="sc-value" style="font-family:var(--font-mono);font-size:0.8125rem">${escapeHtml(s.phone || '—')}</span></div>
+        <div class="sc-row"><span class="sc-label">Booked At</span><span class="sc-value" style="font-size:0.8125rem">${escapeHtml(s.bookedAt || '—')}</span></div>
+        ${s.arrivedAt ? `<div class="sc-row"><span class="sc-label">Arrived At</span><span class="sc-value" style="font-size:0.8125rem;color:#059669">${escapeHtml(s.arrivedAt)}</span></div>` : ''}`;
+
+      let footer = '<button class="btn btn-ghost" onclick="closeModal(\'booking-modal\')">Close</button>';
+      const phone = String(s.phone || '').replace(/\D/g, '');
+      if (phone) {
+        const waPhone = phone.startsWith('0') ? '94' + phone.substring(1) : phone;
+        const msg = encodeURIComponent('Hi ' + (s.studentName||'') + ', regarding your lab booking at ' + pc + ' (' + timeSlot + ')');
+        footer += `<a class="btn-whatsapp" href="https://wa.me/${waPhone}?text=${msg}" target="_blank" rel="noopener">💬 WhatsApp</a>`;
+      }
+      if (s.status === 'Booked') {
+        footer += '<button class="btn btn-primary" style="background:#dc2626" onclick="cancelBooking()">🗑 Cancel</button>';
+        footer += '<button class="btn btn-primary" style="background:#059669" onclick="markPresent()">✅ Mark Present</button>';
+      } else if (s.status === 'Present' || s.status === 'Absent') {
+        footer += '<button class="btn btn-primary" style="background:#dc2626" onclick="cancelBooking()">Remove</button>';
+      }
+      document.getElementById('bm-footer').innerHTML = footer;
+      openModal('booking-modal');
+    }
+
+    async function markPresent() {
+      const r = await apiCall('labMarkPresent', { bookingId: pendingBookingId });
+      if (r && r.success) { showToast('Marked present ✓', 'success'); closeModal('booking-modal'); loadSlots(); }
+      else showToast(r?.error || 'Failed', 'error');
+    }
+    async function cancelBooking() {
+      if (!confirm('Cancel this booking?')) return;
+      const r = await apiCall('labCancelBooking', { bookingId: pendingBookingId });
+      if (r && r.success) { showToast('Booking cancelled', 'success'); closeModal('booking-modal'); loadSlots(); }
+      else showToast(r?.error || 'Failed', 'error');
+    }
+    function showBlockModal(pc, timeSlot) {
+      pendingSlot = { pc, timeSlot };
+      document.getElementById('block-slot-info').textContent = pc + ' · ' + timeSlot;
+      openModal('block-modal');
+    }
+    async function confirmBlock() {
+      const r = await apiCall('labBlockSlot', {
+        date: document.getElementById('f-date').value, branchId: document.getElementById('f-branch').value,
+        pc: pendingSlot.pc, timeSlot: pendingSlot.timeSlot, reason: document.getElementById('block-reason').value.trim()
+      });
+      if (r && r.success) { showToast(r.action === 'unblocked' ? 'Unblocked' : 'Blocked', 'success'); closeModal('block-modal'); document.getElementById('block-reason').value=''; loadSlots(); }
+      else showToast(r?.error || 'Failed', 'error');
+    }
+    async function unblockSlot(bookingId) {
+      const r = await apiCall('labCancelBooking', { bookingId });
+      if (r && r.success) { showToast('Unblocked', 'success'); loadSlots(); }
+    }
+
+    function openQuickBook() {
+      if (!currentSlots) return;
+      for (const pc of currentSlots.pcs) for (const ts of currentSlots.timeSlots)
+        if (currentSlots.slots[pc][ts].status === 'Available') { onSlotClick(pc, ts); return; }
+      showToast('No available slots', 'warning');
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); if (id === 'lookup-modal') stopQR(); }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+    function escapeAttr(str) { return escapeHtml(str).replace(/'/g, '&#39;'); }
+    function pad2(n) { return String(n).padStart(2, '0'); }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') ['lookup-modal','confirm-modal','booking-modal','block-modal'].forEach(closeModal); });
+    document.addEventListener('contextmenu', e => {
+      const slot = e.target.closest('.slot-available');
+      if (!slot) return;
+      e.preventDefault();
+      const td = slot.closest('td'); const tr = slot.closest('tr');
+      const pc = tr.querySelector('.pc-name').textContent.trim();
+      const colIdx = Array.from(td.parentNode.children).indexOf(td) - 1;
+      const ts = currentSlots.timeSlots[colIdx];
+      showBlockModal(pc, ts);
+    });
+    // Close header search on outside click
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#header-search') && !e.target.closest('#header-search-results')) {
+        document.getElementById('header-search-results').style.display = 'none';
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>
