@@ -334,7 +334,8 @@
       const date = document.getElementById('f-date').value;
       const branchId = document.getElementById('f-branch').value;
       if (!date || !branchId) return;
-      document.getElementById('grid-container').innerHTML = '<div style="padding:3rem;text-align:center;color:var(--text-muted)">⏳ Loading...</div>';
+      currentSlots = null; // block clicks on stale grid while loading
+      document.getElementById('grid-container').innerHTML = '<div style="padding:3rem;text-align:center;color:var(--text-muted)">⏳ Loading ' + escapeHtml(date) + '...</div>';
       const result = await apiCall('labGetSlots', { date, branchId });
       if (!result || !result.success) {
         document.getElementById('grid-container').innerHTML = '<div style="padding:3rem;text-align:center;color:#dc2626">⚠ ' + escapeHtml(result?.error || 'Failed') + '</div>';
@@ -387,7 +388,7 @@
           timeSlots.forEach(ts => {
             const s = slots[pc][ts];
             const status = String(s.status).toLowerCase();
-            const gridDate = document.getElementById('f-date').value;
+            const gridDate = currentSlots.date;
             const inCart = cartStudent && cartHas(gridDate, pc, ts) > -1;
             let inner = '', title = pc + ' · ' + ts;
             if (inCart) {
@@ -412,11 +413,12 @@
     }
 
     function onSlotClick(pc, timeSlot) {
+      if (!currentSlots) return; // grid still loading
       const s = currentSlots.slots[pc][timeSlot];
       
       // CART MODE: clicking available slots adds/removes them from the cart
       if (cartStudent) {
-        const date = document.getElementById('f-date').value;
+        const date = currentSlots.date;
         if (s.status === 'Available' || cartHas(date, pc, timeSlot) > -1) {
           toggleCartSlot(pc, timeSlot);
         } else {
@@ -624,7 +626,9 @@
     }
     
     function toggleCartSlot(pc, timeSlot) {
-      const date = document.getElementById('f-date').value;
+      // Use the date the GRID is actually showing (not the date box,
+      // which may have changed while the grid was still loading)
+      const date = currentSlots.date;
       const idx = cartHas(date, pc, timeSlot);
       if (idx > -1) bookingCart.splice(idx, 1);
       else bookingCart.push({ date, pc, timeSlot });
