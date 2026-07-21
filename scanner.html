@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Scanner — DMI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    .scanner-wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    
+    .back-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+    
+    .back-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .back-link:hover { color: var(--dmi-primary); }
+    
+    .mode-switcher {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 0.25rem;
+      border-radius: 10px;
+      gap: 0.25rem;
+    }
+    
+    .mode-switcher button {
+      padding: 0.5rem 1rem;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all var(--transition);
+    }
+    
+    .mode-switcher button.active {
+      background: var(--dmi-primary);
+      color: white;
+    }
+    
+    .scanner-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-card);
+    }
+    
+    .scanner-title {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+    
+    .scanner-subtitle {
+      color: var(--text-muted);
+      font-size: 0.9375rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    #qr-reader {
+      border-radius: 16px;
+      overflow: hidden;
+      background: #000;
+      min-height: 320px;
+    }
+    
+    #qr-reader video { border-radius: 16px; }
+    
+    .manual-entry {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px dashed var(--border);
+    }
+    
+    .manual-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .manual-row input { flex: 1; }
+    
+    /* Result modal */
+    .result-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      animation: fade-in 200ms ease-out;
+    }
+    
+    .result-overlay.active { display: flex; }
+    
+    .result-card {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 2rem 1.75rem;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 25px 60px -15px rgba(0,0,0,0.3);
+      animation: pop-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    
+    @keyframes pop-in {
+      from { transform: scale(0.85); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    
+    .result-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.25rem;
+      margin-bottom: 1rem;
+      animation: pulse-ring 1.4s infinite;
+    }
+    
+    .result-icon.success { background: #d1fae5; color: #065f46; }
+    .result-icon.error { background: #fee2e2; color: #991b1b; animation: none; }
+    .result-icon.warning { background: #fef3c7; color: #92400e; animation: none; }
+    
+    .result-title {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.5rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    .result-name {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    
+    .result-meta {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+    
+    .result-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: var(--bg);
+      border-radius: 12px;
+    }
+    
+    .result-stat-val {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 800;
+    }
+    
+    .result-stat-lbl {
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-top: 0.25rem;
+    }
+    
+    .live-counter {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg);
+      padding: 0.5rem 0.875rem;
+      border-radius: 999px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+    
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: pulse-ring 1.5s infinite;
+    }
+    
+    @media (max-width: 600px) {
+      .scanner-wrap { padding: 1rem; }
+      .scanner-card { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="scanner-wrap">
+    <div class="back-bar">
+      <a href="reception-dashboard.html" class="back-link">← Dashboard</a>
+      <div class="mode-switcher">
+        <button data-mode="student" class="active">🎓 Student</button>
+        <button data-mode="teacher">👨‍🏫 Teacher</button>
+      </div>
+    </div>
+    
+    <div class="scanner-card fade-in">
+      <div class="scanner-title">QR Scanner</div>
+      <div class="scanner-subtitle" id="mode-hint">
+        Hold a student's QR card in front of the camera.
+      </div>
+      
+      <div class="live-counter">
+        <span class="live-dot"></span>
+        <span id="scan-count-text">0 successful scans this session</span>
+      </div>
+      
+      <div id="qr-reader"></div>
+      
+      <div class="manual-entry">
+        <label class="label">Manual Entry (if QR fails)</label>
+        <div class="manual-row">
+          <input type="text" class="input" id="manual-qr" placeholder="Paste or type QR Code ID (e.g. QR-...)" autocomplete="off">
+          <button class="btn btn-primary" onclick="submitManual()">Submit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Result Modal -->
+  <div class="result-overlay" id="result-overlay" onclick="closeResult(event)">
+    <div class="result-card" onclick="event.stopPropagation()">
+      <div class="result-icon" id="result-icon">✓</div>
+      <div class="result-title" id="result-title">Marked!</div>
+      <div class="result-name" id="result-name">—</div>
+      <div class="result-meta" id="result-meta">—</div>
+      
+      <div class="result-stats" id="result-stats" style="display:none">
+        <div>
+          <div class="result-stat-val" id="r-present">—</div>
+          <div class="result-stat-lbl">Present</div>
+        </div>
+        <div>
+          <div class="result-stat-val" id="r-absent">—</div>
+          <div class="result-stat-lbl">Absent</div>
+        </div>
+        <div>
+          <div class="result-stat-val" id="r-percent">—</div>
+          <div class="result-stat-lbl">Attendance</div>
+        </div>
+      </div>
+      
+      <button class="btn btn-primary" style="width:100%" onclick="closeResult()">Continue Scanning</button>
+    </div>
+  </div>
+  
+  <script src="js/api.js"></script>
+  <script src="first-fee-entry.js"></script>
+  <script>
+    const user = requireAuth(['admin', 'reception']);
+    if (!user) throw 'redirect';
+    
+    let currentMode = 'student';
+    let scanCount = 0;
+    let scanner = null;
+    let lastScanTime = 0;
+    let lastScanCode = '';
+    
+    // Mode switcher
+    document.querySelectorAll('.mode-switcher button').forEach(b => {
+      b.addEventListener('click', () => {
+        currentMode = b.dataset.mode;
+        document.querySelectorAll('.mode-switcher button').forEach(x => 
+          x.classList.toggle('active', x === b));
+        document.getElementById('mode-hint').textContent = currentMode === 'teacher'
+          ? 'Hold the teacher\'s QR card in front of the camera. First scan = arrival, second = departure.'
+          : 'Hold a student\'s QR card in front of the camera.';
+      });
+    });
+    
+    // Initialize scanner
+    function startScanner() {
+      scanner = new Html5Qrcode('qr-reader');
+      
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0
+      };
+      
+      scanner.start(
+        { facingMode: 'environment' },
+        config,
+        onScanSuccess,
+        onScanError
+      ).catch(err => {
+        showToast('Camera error: ' + err, 'error');
+        document.getElementById('qr-reader').innerHTML = `
+          <div style="padding:2rem;text-align:center;color:#fff;">
+            <div style="font-size:3rem;margin-bottom:1rem;">📷</div>
+            <div style="margin-bottom:0.5rem;font-weight:600;">Camera unavailable</div>
+            <div style="font-size:.875rem;opacity:.7;">Use manual entry below</div>
+          </div>
+        `;
+      });
+    }
+    
+    function onScanSuccess(decodedText) {
+      // Debounce - prevent same code spam within 3 sec
+      const now = Date.now();
+      if (decodedText === lastScanCode && now - lastScanTime < 3000) return;
+      lastScanCode = decodedText;
+      lastScanTime = now;
+      
+      processQR(decodedText);
+    }
+    
+    function onScanError() {
+      // silent - happens many times per second when no QR detected
+    }
+    
+    async function processQR(qrCode) {
+      // Optional vibration on mobile
+      if (navigator.vibrate) navigator.vibrate(50);
+      
+      const action = currentMode === 'teacher' ? 'markTeacherQR' : 'markStudentQRv2';
+      const result = await apiCall(action, { qrCode });
+      
+      if (!result) return;
+      
+      // Student is in 2+ batches — show a picker
+      if (result.needsClassSelection) {
+        showClassPicker(result.student, result.batches);
+        return;
+      }
+      
+      if (result.success) {
+        scanCount++;
+        document.getElementById('scan-count-text').textContent = 
+          `${scanCount} successful scan${scanCount === 1 ? '' : 's'} this session`;
+        showResult('success', result);
+      } else if (result.alreadyMarked) {
+        showResult('warning', result);
+      } else {
+        showResult('error', result);
+      }
+    }
+    
+    // ===== CLASS PICKER (student in 2+ batches) =====
+    function showClassPicker(student, batches) {
+      // Pause scanning while picking
+      if (typeof pauseScanning === 'function') pauseScanning();
+      
+      let overlay = document.getElementById('class-picker-overlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'class-picker-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.7);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem;';
+        document.body.appendChild(overlay);
+      }
+      
+      const cards = batches.map((b, i) => `
+        <div class="cp-batch" data-gcid="${escapeAttr(b.GroupClassID)}" style="border:1px solid #e2e8f0;border-radius:12px;padding:1rem;margin-bottom:0.625rem;cursor:pointer;transition:all 120ms;${i===0?'border-color:#1e3a8a;background:#eff6ff;':''}">
+          <div style="font-weight:700;font-size:0.9375rem;color:#0f172a;">${escapeHtml(b.BatchName)}${i===0?' <span style=\"font-size:0.625rem;background:#1e3a8a;color:white;padding:2px 6px;border-radius:4px;margin-left:4px;\">NEWEST</span>':''}</div>
+          <div style="font-size:0.8125rem;color:#64748b;margin-top:2px;">${escapeHtml(b.Course || '')}${b.SubModule ? ' · ' + escapeHtml(b.SubModule) : ''}</div>
+          <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px;">${escapeHtml(b.Days || '')} ${b.Time ? '· ' + escapeHtml(b.Time) : ''}${b.TeacherName ? ' · ' + escapeHtml(b.TeacherName) : ''}</div>
+        </div>
+      `).join('');
+      
+      overlay.innerHTML = `
+        <div style="background:white;border-radius:16px;max-width:440px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,0.3);">
+          <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;">
+            <div style="font-family:'Plus Jakarta Sans';font-weight:800;font-size:1.125rem;">Which class?</div>
+            <div style="font-size:0.8125rem;color:#64748b;margin-top:2px;">${escapeHtml(student.name)} is in ${batches.length} classes — pick one to mark present</div>
+          </div>
+          <div style="padding:1.25rem 1.5rem;">${cards}</div>
+          <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;">
+            <button id="cp-cancel" style="background:transparent;border:1px solid #e2e8f0;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;">Cancel</button>
+          </div>
+        </div>
+      `;
+      overlay.style.display = 'flex';
+      
+      overlay.querySelectorAll('.cp-batch').forEach(card => {
+        card.addEventListener('click', async () => {
+          const gcid = card.getAttribute('data-gcid');
+          overlay.style.display = 'none';
+          const result = await apiCall('markStudentQRv2', { qrCode: student.qrCode, groupClassId: gcid });
+          if (result && result.success) {
+            scanCount++;
+            document.getElementById('scan-count-text').textContent = `${scanCount} successful scan${scanCount === 1 ? '' : 's'} this session`;
+            showResult('success', result);
+          } else if (result && result.alreadyMarked) {
+            showResult('warning', result);
+          } else {
+            showResult('error', result || { error: 'Failed' });
+          }
+          if (typeof resumeScanning === 'function') resumeScanning();
+        });
+      });
+      
+      document.getElementById('cp-cancel').addEventListener('click', () => {
+        overlay.style.display = 'none';
+        if (typeof resumeScanning === 'function') resumeScanning();
+      });
+    }
+    
+    function openFirstFeeEntry() {
+      const ctx = window._ffeContext;
+      if (!ctx || !window.showFirstFeeEntryModal) return;
+      // Make apiCall available to the shared modal
+      window.apiCall = apiCall;
+      window.showFirstFeeEntryModal(ctx, function(result) {
+        if (result && result.success) {
+          showToast('✓ Enrolled: ' + result.studentName + ' · Balance Rs. ' + Number(result.balance).toLocaleString(), 'success');
+          closeResult();
+        }
+      });
+    }
+    
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+    function escapeAttr(str) { return escapeHtml(str); }
+    
+    function showResult(type, result) {
+      const icon = document.getElementById('result-icon');
+      const title = document.getElementById('result-title');
+      const name = document.getElementById('result-name');
+      const meta = document.getElementById('result-meta');
+      const stats = document.getElementById('result-stats');
+      
+      icon.className = 'result-icon ' + type;
+      
+      if (type === 'success') {
+        icon.textContent = '✓';
+        title.textContent = result.action === 'arrival' ? 'Teacher Arrived' 
+          : result.action === 'departure' ? 'Teacher Departed' 
+          : 'Attendance Marked';
+        
+        if (currentMode === 'teacher') {
+          name.textContent = result.teacher.name;
+          meta.textContent = result.action === 'departure' 
+            ? `Hours worked: ${result.hoursWorked} · ${result.departureTime}`
+            : `Arrival: ${result.arrivalTime}`;
+          stats.style.display = 'none';
+        } else {
+          name.textContent = result.student.name;
+          meta.textContent = `${result.student.regNumber} · ${result.attendance.time}`;
+          
+          if (result.summary) {
+            stats.style.display = 'grid';
+            document.getElementById('r-present').textContent = result.summary.totalPresent;
+            document.getElementById('r-absent').textContent = result.summary.totalAbsent;
+            document.getElementById('r-percent').textContent = result.summary.percent + '%';
+          }
+        }
+      } else if (type === 'warning') {
+        icon.textContent = '⚠';
+        title.textContent = 'Already Marked';
+        if (result.student) {
+          name.textContent = result.student.name;
+          meta.textContent = `Marked at ${result.student.time || 'earlier today'}`;
+        } else {
+          name.textContent = result.teacher?.name || '';
+          meta.textContent = result.error || '';
+        }
+        stats.style.display = 'none';
+      } else {
+        icon.textContent = '✕';
+        title.textContent = 'Error';
+        name.textContent = result.error || 'Unknown error';
+        meta.textContent = '';
+        stats.style.display = 'none';
+      }
+      
+      document.getElementById('result-overlay').classList.add('active');
+      
+      // FEE STATUS BADGE (student mode only)
+      renderFeeStatus(result);
+      
+      // Auto-close success after 3s — but NOT if there's an overdue fee decision needed
+      if (type === 'success' && !(result.feeStatus && result.feeStatus.status === 'Overdue')) {
+        setTimeout(closeResult, 3500);
+      }
+    }
+    
+    // ===== FEE STATUS BADGE + ACTIONS =====
+    function renderFeeStatus(result) {
+      let box = document.getElementById('fee-status-box');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'fee-status-box';
+        box.style.cssText = 'margin-top:1rem;padding:0.75rem;border-radius:10px;font-size:0.875rem;text-align:left;';
+        const meta = document.getElementById('result-meta');
+        if (meta && meta.parentNode) meta.parentNode.appendChild(box);
+      }
+      
+      if (currentMode === 'teacher' || !result.feeStatus) {
+        box.style.display = 'none';
+        return;
+      }
+      
+      const fs = result.feeStatus;
+      box.style.display = 'block';
+      
+      if (fs.status === 'Paid') {
+        box.style.background = '#d1fae5'; box.style.color = '#065f46';
+        box.innerHTML = '✅ <b>Fees: Paid</b> — up to date';
+      } else if (fs.status === 'NoActiveEnrollment' && fs.needsFirstFeeEntry) {
+        box.style.background = '#fef3c7'; box.style.color = '#78350f';
+        box.innerHTML =
+          '🎓 <b>New in fee system</b> — first entry needed<br>' +
+          '<button onclick="openFirstFeeEntry()" style="background:#166534;color:white;border:none;border-radius:6px;padding:6px 12px;font-weight:600;cursor:pointer;font-size:0.75rem;margin-top:6px;">💰 Enter Opening Balance</button>';
+        window._ffeContext = fs;
+      } else if (fs.status === 'Pending') {
+        box.style.background = '#fef3c7'; box.style.color = '#92400e';
+        box.innerHTML = '🟡 <b>Fees: Pending</b> — Rs. ' + Number(fs.totalBalance).toLocaleString() + ' balance (no overdue yet)';
+      } else if (fs.status === 'Overdue') {
+        box.style.background = '#fee2e2'; box.style.color = '#991b1b';
+        box.innerHTML = 
+          '🔴 <b>OVERDUE: Rs. ' + Number(fs.overdueAmount).toLocaleString() + '</b><br>' +
+          '<div style="margin-top:0.5rem;display:flex;gap:0.375rem;flex-wrap:wrap;">' +
+            '<button onclick="handleFeeDecision(\'allow\')" style="background:#059669;color:white;border:none;border-radius:6px;padding:6px 12px;font-weight:600;cursor:pointer;font-size:0.75rem;">✅ Allow Class</button>' +
+            '<button onclick="handleFeeDecision(\'block\')" style="background:#b91c1c;color:white;border:none;border-radius:6px;padding:6px 12px;font-weight:600;cursor:pointer;font-size:0.75rem;">🚫 Block</button>' +
+            '<button onclick="handleFeeDecision(\'remind\')" style="background:#25d366;color:white;border:none;border-radius:6px;padding:6px 12px;font-weight:600;cursor:pointer;font-size:0.75rem;">💬 Remind</button>' +
+          '</div>';
+        // Remember the student for the decision handler
+        window._feeDecisionCtx = {
+          studentId: result.student?.studentId,
+          registrationNumber: result.student?.regNumber,
+          studentName: result.student?.name,
+          phoneNumber: result.student?.phone || '',
+          overdueAmount: fs.overdueAmount,
+          daysLate: fs.daysLate || 0
+        };
+      } else if (fs.status === 'NoActiveEnrollment' || fs.status === 'Unknown') {
+        box.style.background = '#f1f5f9'; box.style.color = '#64748b';
+        box.innerHTML = '⚪ <span style="font-size:0.75rem;">Not tracked in fees system</span>';
+      } else {
+        box.style.display = 'none';
+      }
+    }
+    
+    async function handleFeeDecision(decision) {
+      const ctx = window._feeDecisionCtx;
+      if (!ctx) return;
+      const r = await apiCall('logFeeDecision', Object.assign({ decision }, ctx));
+      if (!r) return;
+      if (decision === 'remind' && r.whatsappLink) {
+        window.open(r.whatsappLink, '_blank');
+      }
+      // Show short confirmation and close
+      const box = document.getElementById('fee-status-box');
+      const msg = decision === 'allow' ? '✅ Class allowed (logged)'
+                : decision === 'block' ? '🚫 Blocked — please collect payment'
+                : '💬 WhatsApp opened — send the reminder';
+      box.style.background = '#e0e7ff'; box.style.color = '#3730a3';
+      box.innerHTML = msg;
+      setTimeout(closeResult, 2000);
+    }
+    
+    function closeResult(e) {
+      if (e && e.target.closest('.result-card')) return;
+      document.getElementById('result-overlay').classList.remove('active');
+    }
+    
+    function submitManual() {
+      const code = document.getElementById('manual-qr').value.trim();
+      if (!code) return;
+      processQR(code);
+      document.getElementById('manual-qr').value = '';
+    }
+    
+    document.getElementById('manual-qr').addEventListener('keypress', e => {
+      if (e.key === 'Enter') submitManual();
+    });
+    
+    // Start camera
+    startScanner();
+    
+    // Clean up on page leave
+    window.addEventListener('beforeunload', () => {
+      if (scanner && scanner.isScanning) scanner.stop();
+    });
+  </script>
+</body>
+</html>
