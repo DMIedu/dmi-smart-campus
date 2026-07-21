@@ -583,6 +583,9 @@
         });
       }
       extraBox.style.display = extraCount > 0 ? 'block' : 'none';
+      
+      // Fetch LIVE fee status from Fees system (via Smart Campus)
+      fetchAndShowFeeStatusInModal(s);
 
       let alerts = '';
       if (mismatch) alerts += '<div class="alert-strip alert-error">🚫 Branch mismatch — student registered at ' + escapeHtml(s.BranchID) + '. Cannot book here.</div>';
@@ -668,6 +671,52 @@
       } else {
         showToast(r?.error || 'Booking failed', 'error');
       }
+    }
+    
+    // ===== FEE STATUS IN CONFIRM MODAL =====
+    async function fetchAndShowFeeStatusInModal(student) {
+      const alertsBox = document.getElementById('confirm-alerts');
+      if (!alertsBox) return;
+      alertsBox.innerHTML = '<div style="padding:8px;color:#94a3b8;font-size:0.75rem;">Checking fee status...</div>';
+      
+      const r = await apiCall('getFeeStatus', { studentId: student.StudentID });
+      const fs = r?.feeStatus;
+      
+      if (!fs) {
+        alertsBox.innerHTML = '<div style="padding:8px;background:#f1f5f9;color:#64748b;border-radius:8px;font-size:0.75rem;">⚪ Fees not tracked</div>';
+        return;
+      }
+      
+      window._ffeContext = fs;
+      window._ffeContext.studentSC = student;
+      
+      if (fs.status === 'Paid') {
+        alertsBox.innerHTML = '<div style="padding:10px;background:#d1fae5;color:#065f46;border-radius:8px;font-weight:600;">✅ Fees: Paid — up to date</div>';
+      } else if (fs.status === 'NoActiveEnrollment' && fs.needsFirstFeeEntry) {
+        alertsBox.innerHTML = 
+          '<div style="padding:12px;background:#fef3c7;color:#78350f;border-radius:8px;">' +
+            '🎓 <b>New in fee system</b> — first entry needed<br>' +
+            '<button onclick="openFirstFeeEntryFromLab()" style="background:#166534;color:white;border:none;border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;margin-top:8px;">💰 Enter Opening Balance</button>' +
+          '</div>';
+      } else if (fs.status === 'Pending') {
+        alertsBox.innerHTML = '<div style="padding:10px;background:#fef3c7;color:#92400e;border-radius:8px;font-weight:600;">🟡 Fees: Pending — Rs. ' + Number(fs.totalBalance).toLocaleString() + '</div>';
+      } else if (fs.status === 'Overdue') {
+        alertsBox.innerHTML = '<div style="padding:12px;background:#fee2e2;color:#991b1b;border-radius:8px;font-weight:700;">🔴 OVERDUE: Rs. ' + Number(fs.overdueAmount).toLocaleString() + ' — please collect before class</div>';
+      } else {
+        alertsBox.innerHTML = '<div style="padding:8px;background:#f1f5f9;color:#64748b;border-radius:8px;font-size:0.75rem;">⚪ Not tracked in fees system</div>';
+      }
+    }
+    
+    function openFirstFeeEntryFromLab() {
+      const ctx = window._ffeContext;
+      if (!ctx || !window.showFirstFeeEntryModal) { showToast('First Fee Entry unavailable', 'error'); return; }
+      window.showFirstFeeEntryModal(ctx, function(result) {
+        if (result && result.success) {
+          showToast('✓ Enrolled: ' + result.studentName + ' · Balance Rs. ' + Number(result.balance).toLocaleString(), 'success');
+          // Refresh the fee status in the confirm modal
+          if (ctx.studentSC) fetchAndShowFeeStatusInModal(ctx.studentSC);
+        }
+      });
     }
     
     async function confirmBooking() {
