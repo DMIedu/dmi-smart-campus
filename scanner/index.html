@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0E1B36">
+<title>DMI Scanner — Entrance & Food Counter</title>
+<style>
+:root{
+  --navy:#17305F; --deep:#0E1B36; --gold:#F5B301; --ok:#1DB954; --bad:#E5484D;
+  --card:#152449; --line:rgba(255,255,255,.12); --mut:#8FA0C2;
+}
+*{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{font-family:'Segoe UI', system-ui, Arial, sans-serif; background:linear-gradient(170deg,#0E1B36 0%, #101F3D 60%, #0B1730 100%); color:#EAF0FB; min-height:100vh;}
+.wrap{max-width:520px; margin:0 auto; padding:16px 16px 40px;}
+
+.head{display:flex; align-items:center; gap:12px; padding:6px 0 14px;}
+.logo{background:var(--gold); color:#111; border:2px solid #111; font-weight:800; font-size:16px; padding:6px 10px; letter-spacing:1px; border-radius:4px;}
+.head h1{font-size:17px; letter-spacing:.4px;}
+.head small{display:block; color:var(--mut); font-size:11.5px; font-weight:400; margin-top:2px;}
+.dot{margin-left:auto; width:10px; height:10px; border-radius:50%; background:var(--bad);}
+.dot.on{background:var(--ok); box-shadow:0 0 8px var(--ok);}
+
+.modes{display:flex; gap:10px; margin-bottom:14px;}
+.mode{flex:1; padding:14px 8px; border-radius:12px; border:1.5px solid var(--line); background:var(--card); color:#CBD6EA; font-size:14.5px; font-weight:700; text-align:center; cursor:pointer;}
+.mode .em{font-size:22px; display:block; margin-bottom:4px;}
+.mode.on{border-color:var(--gold); background:#1C2F5E; color:#fff; box-shadow:0 0 0 1px var(--gold) inset;}
+
+.scanbox{background:var(--card); border:1.5px solid var(--line); border-radius:14px; overflow:hidden; position:relative;}
+#reader{width:100%;}
+#reader video{border-radius:0 !important;}
+.scan-off{padding:34px 20px; text-align:center; color:var(--mut); font-size:13.5px; line-height:1.7;}
+.bigbtn{display:block; width:100%; padding:15px; border:0; border-radius:12px; background:var(--gold); color:#161616; font-size:16px; font-weight:800; letter-spacing:.3px; cursor:pointer; margin-top:12px;}
+.bigbtn.sec{background:transparent; color:#CBD6EA; border:1.5px solid var(--line); font-weight:600;}
+.bigbtn:disabled{opacity:.5;}
+
+.manual{margin-top:16px;}
+.manual label{font-size:12px; color:var(--mut); letter-spacing:.6px; font-weight:700;}
+.mrow{display:flex; gap:8px; margin-top:6px;}
+.mrow input{flex:1; padding:14px; border-radius:12px; border:1.5px solid var(--line); background:#0F1D3E; color:#fff; font-size:16px; letter-spacing:.5px;}
+.mrow input::placeholder{color:#5D6E93;}
+.mrow button{padding:14px 20px; border-radius:12px; border:0; background:var(--navy); color:#fff; font-size:15px; font-weight:700; cursor:pointer; border:1.5px solid #2A4380;}
+
+.result{margin-top:16px; padding:16px 14px; border-radius:12px; font-size:15.5px; font-weight:700; line-height:1.5; display:none; border:1.5px solid transparent;}
+.result.ok{display:block; background:rgba(29,185,84,.12); border-color:var(--ok); color:#7CEBA5;}
+.result.bad{display:block; background:rgba(229,72,77,.12); border-color:var(--bad); color:#FF9DA0;}
+.result.wait{display:block; background:rgba(245,179,1,.1); border-color:var(--gold); color:#FFD97A;}
+
+.log{margin-top:22px;}
+.log h3{font-size:12px; letter-spacing:1px; color:var(--mut); margin-bottom:8px;}
+.log-item{display:flex; justify-content:space-between; gap:10px; padding:10px 12px; background:var(--card); border:1px solid var(--line); border-radius:10px; margin-bottom:6px; font-size:13px;}
+.log-item .t{color:var(--mut); white-space:nowrap;}
+.log-item.ok{border-left:3px solid var(--ok);}
+.log-item.bad{border-left:3px solid var(--bad);}
+
+.setupwarn{margin-top:14px; padding:12px 14px; border-radius:12px; background:rgba(229,72,77,.1); border:1.5px solid var(--bad); color:#FFB3B5; font-size:13px; line-height:1.6; display:none;}
+.foot{margin-top:26px; text-align:center; color:#54648A; font-size:11px; letter-spacing:.4px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <div class="logo">DMI</div>
+    <h1 id="pageTitle">Event Scanner
+      <small>DMI Computer Education · Award Ceremony</small>
+    </h1>
+    <div class="dot" id="apiDot" title="Backend status"></div>
+  </div>
+
+  <div class="modes">
+    <div class="mode on" id="mEntrance" onclick="setGate('entrance')"><span class="em">🚪</span>ENTRANCE GATE</div>
+    <div class="mode" id="mFood" onclick="setGate('food')"><span class="em">🍱</span>FOOD COUNTER</div>
+  </div>
+
+  <div class="scanbox">
+    <div id="reader"></div>
+    <div class="scan-off" id="scanOff">Camera is off.<br>Press the button below to start scanning student QR codes.</div>
+  </div>
+  <button class="bigbtn" id="btnCam" onclick="toggleCam()">📷 Start Camera Scanning</button>
+
+  <div class="manual">
+    <label>MANUAL ENTRY (Student ID or Reg No)</label>
+    <div class="mrow">
+      <input id="manualId" placeholder="DMI-S-100497 or DKB0222" autocomplete="off" autocapitalize="characters">
+      <button onclick="manualCheck()">Check</button>
+    </div>
+  </div>
+
+  <div class="result" id="result"></div>
+
+  <div class="setupwarn" id="setupWarn">
+    ⚠ <b>Setup needed:</b> open this file and paste your Apps Script Web App URL into the <b>SCRIPT_URL</b> line at the top of the &lt;script&gt; section, then re-upload to GitHub Pages.
+  </div>
+
+  <div class="log">
+    <h3>RECENT SCANS (THIS DEVICE)</h3>
+    <div id="logList"></div>
+  </div>
+
+  <div class="foot">DMI Scanner · works on GitHub Pages over HTTPS · camera + manual entry</div>
+</div>
+
+<script src="html5-qrcode.min.js"></script>
+<script>
+/* ================================================================
+   CONFIGURATION — EDIT THIS ONE LINE
+   Paste your Google Apps Script Web App URL (ends with /exec)
+   ================================================================ */
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby-PePITE8JhdAV_QtDefwjWZ8mo-1Fahi_8NntKOK7Mi9lEVx8VcIiaD9f2bs_BiM5";
+
+/* ================================================================ */
+let gate = new URLSearchParams(location.search).get('gate') === 'food' ? 'food' : 'entrance';
+let scanning = false, qr = null, busy = false, lastId = '', lastAt = 0;
+
+function setGate(g){
+  gate = g;
+  document.getElementById('mEntrance').classList.toggle('on', g==='entrance');
+  document.getElementById('mFood').classList.toggle('on', g==='food');
+  showResult('', '');
+}
+setGate(gate);
+
+/* ---------- camera ---------- */
+async function toggleCam(){
+  const btn = document.getElementById('btnCam');
+  if(scanning){
+    await qr.stop().catch(()=>{});
+    scanning = false;
+    btn.textContent = '📷 Start Camera Scanning';
+    document.getElementById('scanOff').style.display = 'block';
+    return;
+  }
+  try{
+    document.getElementById('scanOff').style.display = 'none';
+    qr = qr || new Html5Qrcode("reader");
+    await qr.start(
+      {facingMode: "environment"},
+      {fps: 10, qrbox: {width: 230, height: 230}},
+      onScan,
+      () => {} /* per-frame decode misses: ignore */
+    );
+    scanning = true;
+    btn.textContent = '⏹ Stop Camera';
+  }catch(err){
+    document.getElementById('scanOff').style.display = 'block';
+    showResult('bad', 'Camera error: ' + err + ' — use Manual Entry below, or check camera permission for this site.');
+  }
+}
+
+function onScan(text){
+  const id = extractId(text);
+  const now = Date.now();
+  if(id === lastId && now - lastAt < 4000) return;  // ignore duplicate frames
+  lastId = id; lastAt = now;
+  navigator.vibrate && navigator.vibrate(80);
+  beep();
+  check(id);
+}
+
+/* QR may contain plain ID or a URL like ...?id=DMI-S-100497 */
+function extractId(text){
+  text = String(text).trim();
+  try{
+    if(/^https?:\/\//i.test(text)){
+      const u = new URL(text);
+      return (u.searchParams.get('id') || text).trim();
+    }
+  }catch(e){}
+  return text;
+}
+
+function manualCheck(){
+  const v = document.getElementById('manualId').value.trim();
+  if(!v) return;
+  check(v);
+}
+
+/* ---------- backend call ---------- */
+async function check(id){
+  if(busy) return;
+  if(SCRIPT_URL.startsWith('PASTE_')){
+    document.getElementById('setupWarn').style.display = 'block';
+    return;
+  }
+  busy = true;
+  showResult('wait', '⏳ Checking ' + id + ' …');
+  try{
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'}, /* text/plain avoids CORS preflight */
+      body: JSON.stringify({gate: gate, id: id})
+    });
+    const data = await res.json();
+    const ok = !!data.ok;
+    showResult(ok ? 'ok' : 'bad', (ok ? '✅ ' : '⛔ ') + (data.message || 'No message from server'));
+    addLog(ok, id, data.message || '');
+    if(ok) document.getElementById('manualId').value = '';
+  }catch(err){
+    showResult('bad', '⚠ Network / server error: ' + err.message + ' — check internet or the Apps Script deployment.');
+  }
+  busy = false;
+}
+
+/* ---------- UI helpers ---------- */
+function showResult(cls, msg){
+  const el = document.getElementById('result');
+  el.className = 'result' + (cls ? ' ' + cls : '');
+  el.textContent = msg;
+}
+function addLog(ok, id, msg){
+  const list = document.getElementById('logList');
+  const item = document.createElement('div');
+  item.className = 'log-item ' + (ok ? 'ok' : 'bad');
+  const t = new Date();
+  item.innerHTML = '<span>' + esc(id) + ' — ' + esc(msg) + '</span><span class="t">' +
+    String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0') + '</span>';
+  list.prepend(item);
+  while(list.children.length > 25) list.lastChild.remove();
+}
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function beep(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 1200; g.gain.value = .15;
+    o.start(); o.stop(ctx.currentTime + .12);
+  }catch(e){}
+}
+
+/* ---------- backend health check ---------- */
+(async function(){
+  if(SCRIPT_URL.startsWith('PASTE_')){
+    document.getElementById('setupWarn').style.display = 'block';
+    return;
+  }
+  try{
+    const res = await fetch(SCRIPT_URL + '?page=ping');
+    const t = await res.text();
+    if(/server is alive|OK/i.test(t)) document.getElementById('apiDot').classList.add('on');
+  }catch(e){}
+})();
+
+/* Enter key submits manual entry */
+document.getElementById('manualId').addEventListener('keydown', e => {
+  if(e.key === 'Enter') manualCheck();
+});
+</script>
+</body>
+</html>
