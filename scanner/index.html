@@ -56,6 +56,22 @@ body{font-family:'Segoe UI', system-ui, Arial, sans-serif; background:linear-gra
 
 .setupwarn{margin-top:14px; padding:12px 14px; border-radius:12px; background:rgba(229,72,77,.1); border:1.5px solid var(--bad); color:#FFB3B5; font-size:13px; line-height:1.6; display:none;}
 .foot{margin-top:26px; text-align:center; color:#54648A; font-size:11px; letter-spacing:.4px;}
+
+/* ===== big PASS/FAIL result screen ===== */
+.verdict{position:fixed; inset:0; z-index:999; display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:26px;}
+.verdict.show{display:flex;}
+.verdict.pass{background:linear-gradient(160deg,#0B3D22,#0F5C31);}
+.verdict.fail{background:linear-gradient(160deg,#3D0B10,#6E1620);}
+.verdict .icon{font-size:96px; line-height:1; margin-bottom:6px;}
+.verdict .big{font-size:46px; font-weight:800; letter-spacing:2px; margin-bottom:14px;}
+.verdict.pass .big{color:#8CF0B4;}
+.verdict.fail .big{color:#FFB0B4;}
+.verdict .msg{font-size:22px; font-weight:700; line-height:1.45; color:#fff; max-width:440px; margin-bottom:8px;}
+.verdict .sub{font-size:14px; color:rgba(255,255,255,.7); margin-bottom:34px;}
+.verdict .next{width:100%; max-width:420px; padding:20px; border:0; border-radius:16px; font-size:21px; font-weight:800; letter-spacing:.5px; cursor:pointer; background:var(--gold); color:#161616;}
+.verdict .next:active{transform:scale(.98);}
+.verdict .counter{position:absolute; top:22px; right:22px; font-size:13px; color:rgba(255,255,255,.7); background:rgba(0,0,0,.25); padding:6px 12px; border-radius:20px;}
+.verdict .gate-lbl{position:absolute; top:22px; left:22px; font-size:13px; font-weight:700; letter-spacing:1px; color:rgba(255,255,255,.85);}
 </style>
 </head>
 <body>
@@ -102,6 +118,16 @@ body{font-family:'Segoe UI', system-ui, Arial, sans-serif; background:linear-gra
   <div class="foot">DMI Scanner · works on GitHub Pages over HTTPS · camera + manual entry</div>
 </div>
 
+<div class="verdict" id="verdict">
+  <div class="gate-lbl" id="vGate"></div>
+  <div class="counter" id="vCount"></div>
+  <div class="icon" id="vIcon"></div>
+  <div class="big" id="vBig"></div>
+  <div class="msg" id="vMsg"></div>
+  <div class="sub" id="vSub"></div>
+  <button class="next" onclick="nextScan()">▶ NEXT SCAN</button>
+</div>
+
 <script src="html5-qrcode.min.js"></script>
 <script>
 /* ================================================================
@@ -113,6 +139,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby-PePITE8JhdAV_QtDe
 /* ================================================================ */
 let gate = new URLSearchParams(location.search).get('gate') === 'food' ? 'food' : 'entrance';
 let scanning = false, qr = null, busy = false, lastId = '', lastAt = 0;
+let okCount = 0, failCount = 0, wasScanning = false;
 
 function setGate(g){
   gate = g;
@@ -150,10 +177,13 @@ async function toggleCam(){
 }
 
 function onScan(text){
+  if(busy) return;
   const id = extractId(text);
   const now = Date.now();
-  if(id === lastId && now - lastAt < 4000) return;  // ignore duplicate frames
+  if(id === lastId && now - lastAt < 1500) return;  // ignore duplicate frames
   lastId = id; lastAt = now;
+  // pause the live camera so it holds on this one student
+  if(qr && scanning){ try{ qr.pause(true); }catch(e){} }
   navigator.vibrate && navigator.vibrate(80);
   beep();
   check(id);
@@ -194,13 +224,42 @@ async function check(id){
     });
     const data = await res.json();
     const ok = !!data.ok;
-    showResult(ok ? 'ok' : 'bad', (ok ? '✅ ' : '⛔ ') + (data.message || 'No message from server'));
     addLog(ok, id, data.message || '');
     if(ok) document.getElementById('manualId').value = '';
+    showVerdict(ok, data.message || 'No message from server', id);
   }catch(err){
-    showResult('bad', '⚠ Network / server error: ' + err.message + ' — check internet or the Apps Script deployment.');
+    addLog(false, id, 'Network error');
+    showVerdict(false, 'Network / server error — check internet or try again', id);
   }
   busy = false;
+}
+
+/* ===== big PASS / FAIL screen ===== */
+function showVerdict(ok, msg, id){
+  if(ok) okCount++; else failCount++;
+  const v = document.getElementById('verdict');
+  v.className = 'verdict show ' + (ok ? 'pass' : 'fail');
+  document.getElementById('vIcon').textContent = ok ? '✅' : '⛔';
+  document.getElementById('vBig').textContent  = ok ? 'PASS' : 'STOP';
+  document.getElementById('vMsg').textContent  = msg;
+  document.getElementById('vSub').textContent  = 'Scanned ID: ' + id;
+  document.getElementById('vGate').textContent = (gate === 'food' ? '🍱 FOOD COUNTER' : '🚪 ENTRANCE GATE');
+  document.getElementById('vCount').textContent = '✅ ' + okCount + '   ⛔ ' + failCount;
+  navigator.vibrate && navigator.vibrate(ok ? [60] : [90,60,90]);
+}
+
+/* staff taps NEXT SCAN — resume camera or clear for next manual entry */
+function nextScan(){
+  document.getElementById('verdict').classList.remove('show');
+  lastId = ''; lastAt = 0;
+  const mi = document.getElementById('manualId');
+  mi.value = '';
+  if(qr && scanning){
+    try{ qr.resume(); }catch(e){}
+    mi.blur();
+  } else {
+    mi.focus();
+  }
 }
 
 /* ---------- UI helpers ---------- */
