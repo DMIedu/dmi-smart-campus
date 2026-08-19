@@ -348,13 +348,22 @@
       updateStudentCount(branchId);
     }
 
+    // Cached per branch: this call downloads every student record, so it must
+    // run once per branch per session -- NOT on every date change.
+    const _studentCountCache = {};
     async function updateStudentCount(branchId) {
-      // Lightweight: ask for a broad search to count branch students
+      if (!branchId) return;
+      const el = document.getElementById('student-count');
+      if (_studentCountCache[branchId] !== undefined) {
+        el.textContent = _studentCountCache[branchId].toLocaleString() + ' students';
+        return;
+      }
       try {
-        const r = await apiCall('listStudents', { branchId });
+        const r = await apiCall('listStudents', { branchId, limit: 5000 });
         if (r && r.success && Array.isArray(r.students)) {
-          const n = r.students.filter(s => !branchId || String(s.BranchID) === String(branchId)).length;
-          document.getElementById('student-count').textContent = n.toLocaleString() + ' students';
+          const n = r.students.filter(s => String(s.BranchID) === String(branchId)).length;
+          _studentCountCache[branchId] = n;
+          el.textContent = n.toLocaleString() + ' students';
         }
       } catch (e) {}
     }
