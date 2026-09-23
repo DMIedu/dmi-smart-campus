@@ -441,6 +441,22 @@
     }
     .logout-btn:hover { background: var(--bg); }
   </style>
+  <style>
+    /* Book a lab session call-to-action */
+    .lab-cta {
+      display: flex; align-items: center; gap: 1rem;
+      padding: 1rem 1.25rem; margin-bottom: 1.25rem;
+      border-radius: 14px; text-decoration: none;
+      background: linear-gradient(135deg, #1e3a8a 0%, #4338ca 100%);
+      color: #fff; transition: transform .15s, box-shadow .15s;
+    }
+    .lab-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(30,58,138,.25); }
+    .lab-cta-icon { font-size: 1.75rem; line-height: 1; }
+    .lab-cta-text { flex: 1; }
+    .lab-cta-title { font-weight: 700; font-size: 1.05rem; }
+    .lab-cta-sub { font-size: .8rem; opacity: .85; margin-top: 2px; }
+    .lab-cta-arrow { font-size: 1.25rem; opacity: .9; }
+  </style>
 </head>
 <body>
   <header class="dmi-header">
@@ -475,6 +491,16 @@
       </div>
     </div>
     
+    <!-- Book a lab session -->
+    <a href="student-lab-booking.html" class="lab-cta fade-in" style="animation-delay: 40ms">
+      <div class="lab-cta-icon">&#128187;</div>
+      <div class="lab-cta-text">
+        <div class="lab-cta-title">Book a Lab Session</div>
+        <div class="lab-cta-sub">Choose a free computer slot for the week ahead</div>
+      </div>
+      <div class="lab-cta-arrow">&rarr;</div>
+    </a>
+
     <!-- Attendance + Next Class -->
     <div class="attendance-hero fade-in" style="animation-delay: 80ms">
       <!-- Attendance ring -->
