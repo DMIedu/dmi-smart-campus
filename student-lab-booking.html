@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book a Lab Session — DMI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .container { max-width: 900px; padding: 1.5rem; margin: 0 auto; }
+    .back-link {
+      color: var(--text-muted); text-decoration: none;
+      font-size: 0.875rem; display: inline-block; margin-bottom: 1rem;
+    }
+    .back-link:hover { color: var(--text); }
+    .page-title { font-size: 1.5rem; font-weight: 800; margin: 0 0 0.25rem; }
+    .page-sub { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.25rem; }
+    .quota {
+      display: flex; flex-wrap: wrap; gap: 1.25rem;
+      padding: 1rem 1.25rem; border-radius: 12px;
+      background: #1e3a8a; color: #fff; margin-bottom: 1.25rem;
+    }
+    .quota-item { min-width: 110px; }
+    .quota-label { font-size: 0.7rem; letter-spacing: .06em; text-transform: uppercase; opacity: .75; }
+    .quota-value { font-size: 1.35rem; font-weight: 800; }
+    .rules-note {
+      font-size: 0.8rem; color: var(--text-muted);
+      background: #fffbeb; border: 1px solid #fde68a;
+      padding: 0.75rem 1rem; border-radius: 10px; margin-bottom: 1.25rem;
+    }
+    .day-card {
+      border: 1px solid var(--border); border-radius: 12px;
+      padding: 1rem; margin-bottom: 1rem; background: var(--surface, #fff);
+    }
+    .day-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.75rem; }
+    .day-name { font-weight: 700; }
+    .day-date { color: var(--text-muted); font-size: 0.85rem; }
+    .day-count { font-size: 0.8rem; color: var(--text-muted); }
+    .slot-grid { display: grid; gap: 0.5rem; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    .slot {
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 0.6rem 0.5rem; text-align: center; cursor: pointer;
+      font-size: 0.85rem; background: #fff; transition: all .12s;
+    }
+    .slot:hover:not(.disabled):not(.mine) { border-color: #1e3a8a; background: #eff6ff; }
+    .slot-time { font-weight: 600; }
+    .slot-free { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+    .slot.mine { background: #ede9fe; border-color: #7c3aed; color: #5b21b6; cursor: default; }
+    .slot.mine .slot-free { color: #7c3aed; font-weight: 600; }
+    .slot.full, .slot.disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; border-style: dashed; }
+    .mine-row {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 1rem; padding: 0.75rem 0; border-bottom: 1px solid var(--border);
+    }
+    .mine-row:last-child { border-bottom: none; }
+    .mine-when { font-weight: 600; }
+    .mine-meta { font-size: 0.8rem; color: var(--text-muted); }
+    .pill {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 0.7rem; font-weight: 700; background: #ede9fe; color: #5b21b6;
+    }
+    .overlay {
+      display: none; position: fixed; inset: 0; z-index: 50;
+      background: rgba(15,23,42,.45); align-items: center; justify-content: center; padding: 1rem;
+    }
+    .overlay.active { display: flex; }
+    .modal { background: #fff; border-radius: 14px; padding: 1.5rem; width: 100%; max-width: 400px; }
+    .modal h3 { margin: 0 0 0.25rem; }
+    .modal-sub { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem; }
+    .field-label {
+      font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .05em; color: var(--text-muted); margin-bottom: 0.3rem;
+    }
+    .sub-input {
+      width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border);
+      border-radius: 9px; font-family: inherit; font-size: 0.95rem; margin-bottom: 0.75rem;
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+    .chip {
+      border: 1px solid var(--border); border-radius: 999px;
+      padding: 0.3rem 0.7rem; font-size: 0.8rem; cursor: pointer; background: #fff;
+    }
+    .chip:hover { border-color: #1e3a8a; background: #eff6ff; }
+    .empty { text-align: center; padding: 2rem 1rem; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <a href="student-dashboard.html" class="brand">
+        <span class="brand-mark">D</span>
+        <span class="brand-name">DMI Smart Campus</span>
+      </a>
+      <div class="topbar-right">
+        <span id="student-name" class="topbar-user"></span>
+        <button class="btn btn-ghost" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <a href="student-dashboard.html" class="back-link">← Back to dashboard</a>
+
+    <h1 class="page-title">💻 Book a Lab Session</h1>
+    <p class="page-sub">Choose a free session and tell us what you will practise.</p>
+
+    <div id="quota-bar"></div>
+    <div id="rules-note"></div>
+
+    <div id="my-bookings"></div>
+    <div id="days"><div class="empty">Loading available sessions…</div></div>
+  </div>
+
+  <div class="overlay" id="book-modal">
+    <div class="modal">
+      <h3>Confirm booking</h3>
+      <div class="modal-sub" id="book-when"></div>
+
+      <div class="field-label">What will you practise?</div>
+      <input class="sub-input" id="sub-input" type="text"
+             placeholder="e.g. Excel formulas" autocomplete="off">
+      <div class="chips" id="sub-chips"></div>
+
+      <button class="btn btn-primary" style="width:100%" id="confirm-btn"
+              onclick="confirmBooking()">Confirm booking</button>
+      <button class="btn btn-ghost" style="width:100%;margin-top:0.5rem"
+              onclick="closeBook()">Cancel</button>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const user = requireAuth(['student']);
+    if (!user) throw 'redirect';
+
+    let DATA = null;
+    let pending = null;
+
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    async function load() {
+      const r = await apiCall('studentLabWindow', {});
+      if (!r || !r.success) {
+        document.getElementById('days').innerHTML =
+          `<div class="empty">${esc((r && r.error) || 'Could not load sessions')}</div>`;
+        return;
+      }
+      DATA = r;
+      document.getElementById('student-name').textContent = r.student.name || '';
+      renderQuota(); renderRules(); renderMine(); renderDays();
+    }
+
+    function renderQuota() {
+      const cap = DATA.rules.maxInWindow;
+      const used = DATA.myBookings.length;
+      document.getElementById('quota-bar').innerHTML = `
+        <div class="quota">
+          <div class="quota-item">
+            <div class="quota-label">Booked</div>
+            <div class="quota-value">${used}</div>
+          </div>
+          ${cap > 0 ? `
+          <div class="quota-item">
+            <div class="quota-label">Remaining</div>
+            <div class="quota-value">${Math.max(0, cap - used)}</div>
+          </div>` : ''}
+          <div class="quota-item">
+            <div class="quota-label">Per day limit</div>
+            <div class="quota-value">${DATA.rules.maxPerDay}</div>
+          </div>
+          <div class="quota-item">
+            <div class="quota-label">Branch</div>
+            <div class="quota-value" style="font-size:1rem">${esc(DATA.student.branchId)}</div>
+          </div>
+        </div>`;
+    }
+
+    function renderRules() {
+      const R = DATA.rules;
+      const bits = [];
+      bits.push(`You can book up to <b>${R.daysAhead} days</b> ahead`
+                + (R.includesToday ? ' (including today)' : ', starting from tomorrow'));
+      bits.push(`at most <b>${R.maxPerDay} sessions per day</b>`);
+      if (R.maxInWindow > 0) bits.push(`and <b>${R.maxInWindow} in total</b>`);
+      document.getElementById('rules-note').innerHTML =
+        `<div class="rules-note">ℹ️ ${bits.join(', ')}. Your own bookings show in purple.</div>`;
+    }
+
+    function renderMine() {
+      const el = document.getElementById('my-bookings');
+      if (!DATA.myBookings.length) { el.innerHTML = ''; return; }
+      const rows = DATA.myBookings.map(b => `
+        <div class="mine-row">
+          <div>
+            <div class="mine-when">${esc(b.date)} · ${esc(b.timeSlot)}</div>
+            <div class="mine-meta">${esc(b.pc)}${b.subModule ? ' · ' + esc(b.subModule) : ''}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.6rem">
+            <span class="pill">${esc(b.status)}</span>
+            ${DATA.rules.canCancel
+              ? `<button class="btn btn-ghost" onclick="cancelBooking('${esc(b.bookingId)}')">Cancel</button>`
+              : ''}
+          </div>
+        </div>`).join('');
+      el.innerHTML = `
+        <div class="day-card">
+          <div class="day-head"><div class="day-name">My bookings</div></div>
+          ${rows}
+        </div>`;
+    }
+
+    function renderDays() {
+      const mineKey = {};
+      DATA.myBookings.forEach(b => { mineKey[b.date + '|' + b.timeSlot] = b; });
+
+      const html = DATA.days.map(day => {
+        const slots = day.slots.map(s => {
+          const key = day.date + '|' + s.timeSlot;
+          const mine = mineKey[key];
+          if (mine) {
+            return `<div class="slot mine">
+                      <div class="slot-time">${esc(s.timeSlot)}</div>
+                      <div class="slot-free">✓ Your booking</div>
+                    </div>`;
+          }
+          if (s.freePcs <= 0) {
+            return `<div class="slot full">
+                      <div class="slot-time">${esc(s.timeSlot)}</div>
+                      <div class="slot-free">Full</div>
+                    </div>`;
+          }
+          if (!day.canBookMore) {
+            return `<div class="slot disabled">
+                      <div class="slot-time">${esc(s.timeSlot)}</div>
+                      <div class="slot-free">Day limit reached</div>
+                    </div>`;
+          }
+          return `<div class="slot"
+                       onclick="openBook('${esc(day.date)}','${esc(s.timeSlot)}')">
+                    <div class="slot-time">${esc(s.timeSlot)}</div>
+                    <div class="slot-free">${s.freePcs} free</div>
+                  </div>`;
+        }).join('');
+
+        return `
+          <div class="day-card">
+            <div class="day-head">
+              <div>
+                <span class="day-name">${esc(day.dayName)}</span>
+                <span class="day-date"> · ${esc(day.date)}</span>
+              </div>
+              <div class="day-count">${day.myBookings}/${DATA.rules.maxPerDay} booked</div>
+            </div>
+            <div class="slot-grid">${slots}</div>
+          </div>`;
+      }).join('');
+
+      document.getElementById('days').innerHTML =
+        html || '<div class="empty">No sessions available right now.</div>';
+    }
+
+    function openBook(date, timeSlot) {
+      pending = { date, timeSlot };
+      document.getElementById('book-when').textContent = date + ' · ' + timeSlot;
+      document.getElementById('sub-input').value = '';
+      const sugg = (DATA.rules.subModules && DATA.rules.subModules.length)
+        ? DATA.rules.subModules
+        : ['Word', 'Excel', 'Access', 'PowerPoint', 'Typing', 'Internet'];
+      document.getElementById('sub-chips').innerHTML = sugg.map(s =>
+        `<div class="chip" onclick="document.getElementById('sub-input').value='${esc(s)}'">${esc(s)}</div>`
+      ).join('');
+      document.getElementById('book-modal').classList.add('active');
+      setTimeout(() => document.getElementById('sub-input').focus(), 50);
+    }
+
+    function closeBook() {
+      pending = null;
+      document.getElementById('book-modal').classList.remove('active');
+    }
+
+    async function confirmBooking() {
+      if (!pending) return;
+      const subModule = document.getElementById('sub-input').value.trim();
+      if (!subModule) { showToast('Please say what you will practise', 'error'); return; }
+
+      const btn = document.getElementById('confirm-btn');
+      btn.disabled = true; btn.textContent = 'Booking…';
+
+      const r = await apiCall('studentLabBook', {
+        date: pending.date, timeSlot: pending.timeSlot, subModule: subModule
+      });
+
+      btn.disabled = false; btn.textContent = 'Confirm booking';
+
+      if (r && r.success) {
+        showToast(r.message || 'Booked', 'success');
+        closeBook(); load();
+      } else {
+        showToast((r && r.error) || 'Booking failed', 'error');
+      }
+    }
+
+    async function cancelBooking(bookingId) {
+      if (!confirm('Cancel this booking?')) return;
+      const r = await apiCall('studentLabCancel', { bookingId: bookingId });
+      if (r && r.success) { showToast('Booking cancelled', 'success'); load(); }
+      else { showToast((r && r.error) || 'Could not cancel', 'error'); }
+    }
+
+    load();
+  </script>
+</body>
+</html>
