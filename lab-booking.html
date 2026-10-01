@@ -331,12 +331,17 @@
       loadSlots();
     }
 
-    async function loadSlots() {
+    async function loadSlots(silent = false) {
       const date = document.getElementById('f-date').value;
       const branchId = document.getElementById('f-branch').value;
       if (!date || !branchId) return;
-      currentSlots = null; // block clicks on stale grid while loading
-      document.getElementById('grid-container').innerHTML = '<div style="padding:3rem;text-align:center;color:var(--text-muted)">⏳ Loading ' + escapeHtml(date) + '...</div>';
+
+      // Normal date/branch changes show a loader. Background reconciliation
+      // keeps the current grid usable instead of blanking it after every booking.
+      if (!silent) {
+        currentSlots = null; // block clicks on stale grid while loading
+        document.getElementById('grid-container').innerHTML = '<div style="padding:3rem;text-align:center;color:var(--text-muted)">⏳ Loading ' + escapeHtml(date) + '...</div>';
+      }
       const result = await apiCall('labGetSlots', { date, branchId });
       if (!result || !result.success) {
         document.getElementById('grid-container').innerHTML = '<div style="padding:3rem;text-align:center;color:#dc2626">⚠ ' + escapeHtml(result?.error || 'Failed') + '</div>';
@@ -657,6 +662,52 @@
         </span>`).join('');
     }
     
+    function refreshLocalLabSummary() {
+      if (!currentSlots) return;
+      const summary = { available: 0, booked: 0, present: 0, absent: 0, blocked: 0 };
+
+      currentSlots.pcs.forEach(pc => {
+        currentSlots.timeSlots.forEach(ts => {
+          const slot = currentSlots.slots?.[pc]?.[ts];
+          if (!slot) return;
+          const status = String(slot.status || '').toLowerCase();
+          if (status === 'available') summary.available++;
+          else if (status === 'booked') summary.booked++;
+          else if (status === 'present') summary.present++;
+          else if (status === 'absent') summary.absent++;
+          else if (status === 'blocked') summary.blocked++;
+        });
+      });
+
+      currentSlots.summary = summary;
+      renderStats(summary);
+    }
+
+    function applyLocalBookings(sessions, student, course, subModule) {
+      if (!currentSlots || !student) return;
+
+      sessions.forEach(session => {
+        // Only update cells for the date currently visible on screen.
+        if (String(session.date) !== String(currentSlots.date)) return;
+        const slot = currentSlots.slots?.[session.pc]?.[session.timeSlot];
+        if (!slot || String(slot.status).toLowerCase() !== 'available') return;
+
+        currentSlots.slots[session.pc][session.timeSlot] = {
+          status: 'Booked',
+          studentName: student.StudentName,
+          regNumber: student.RegistrationNumber,
+          phone: student.PhoneNumber,
+          course: course || student.Course || '',
+          subModule: subModule || '',
+          bookedAt: 'Just now',
+          bookingId: ''
+        };
+      });
+
+      refreshLocalLabSummary();
+      renderGrid();
+    }
+
     async function confirmCart() {
       if (bookingCart.length === 0) { showToast('No slots selected', 'warning'); return; }
       const btn = document.getElementById('cart-confirm-btn');
@@ -674,9 +725,21 @@
       if (r && r.success) {
         let msg = 'Booked ' + (r.booked?.length || 0) + ' sessions for ' + cartStudent.StudentName;
         if (r.failed && r.failed.length) msg += ' · failed: ' + r.failed.map(f => f.date + ' ' + f.timeSlot + ' (' + f.error + ')').join('; ');
+
+        // Paint successful bookings immediately. The server remains the source
+        // of truth; reconcile silently afterwards.
+        const failedKeys = new Set((r.failed || []).map(f => [f.date, f.pc, f.timeSlot].join('|')));
+        const successfulSlots = bookingCart.filter(s => !failedKeys.has([s.date, s.pc, s.timeSlot].join('|')));
+        applyLocalBookings(successfulSlots, {
+          StudentName: cartStudent.StudentName,
+          RegistrationNumber: '',
+          PhoneNumber: '',
+          Course: cartStudent.course || ''
+        }, cartStudent.course, cartStudent.subModule);
+
         showToast(msg, r.failed && r.failed.length ? 'warning' : 'success');
         exitCartMode();
-        loadSlots();
+        setTimeout(() => loadSlots(true), 1200);
       } else {
         showToast(r?.error || 'Booking failed', 'error');
       }
@@ -752,8 +815,19 @@
         if (r && r.success) {
           let msg = 'Booked ' + (r.booked?.length || 0) + ' sessions for ' + pendingStudent.StudentName;
           if (r.failed && r.failed.length) msg += ' · ' + r.failed.length + ' failed';
+
+          const failedKeys = new Set((r.failed || []).map(f => [f.date, f.pc, f.timeSlot].join('|')));
+          const successfulSessions = sessions.filter(s => !failedKeys.has([s.date, s.pc, s.timeSlot].join('|')));
+          applyLocalBookings(
+            successfulSessions,
+            pendingStudent,
+            document.getElementById('edit-course').value.trim(),
+            document.getElementById('edit-submodule').value.trim()
+          );
+
           showToast(msg, r.failed && r.failed.length ? 'warning' : 'success');
-          closeModal('confirm-modal'); loadSlots();
+          closeModal('confirm-modal');
+          setTimeout(() => loadSlots(true), 1200);
         } else { showToast(r?.error || 'Booking failed', 'error'); }
         return;
       }
@@ -768,8 +842,15 @@
       });
       btn.disabled = false; btn.textContent = '✓ Confirm Booking';
       if (r && r.success) {
+        applyLocalBookings(
+          sessions,
+          pendingStudent,
+          document.getElementById('edit-course').value.trim(),
+          document.getElementById('edit-submodule').value.trim()
+        );
         showToast('Booked: ' + pendingStudent.StudentName + ' @ ' + pendingSlot.pc, 'success');
-        closeModal('confirm-modal'); loadSlots();
+        closeModal('confirm-modal');
+        setTimeout(() => loadSlots(true), 1200);
       } else { showToast(r?.error || 'Booking failed', 'error'); }
     }
 

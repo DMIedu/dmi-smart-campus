@@ -627,6 +627,7 @@
     let batchStudentIds = new Set();
     let selectedToAdd = new Set();
     let pendingMark = null;
+    let attendanceSaving = false;
     
     // Load list of classes for dropdown
     // All classes are held in memory so filtering needs no extra API calls.
@@ -1043,21 +1044,52 @@
     }
     
     async function setAttendance(status) {
-      if (!pendingMark) return;
-      
-      const result = await apiCall('markManualAttendance', {
-        StudentID: pendingMark.studentId,
-        GroupClassID: currentClass.GroupClassID,
-        Date: pendingMark.date,
-        Status: status
-      });
-      
-      if (result && result.success) {
-        showToast(`Marked ${pendingMark.studentName} as ${status}`, 'success');
-        closeMarkModal();
-        loadClassBook();
-      } else {
-        showToast(result?.error || 'Failed to mark', 'error');
+      // Prevent duplicate writes when the user clicks Present/Absent more than once
+      // while the Apps Script request is still in flight.
+      if (!pendingMark || attendanceSaving) return;
+
+      attendanceSaving = true;
+      const mark = { ...pendingMark };
+      const buttons = Array.from(document.querySelectorAll('#mark-modal button'));
+      buttons.forEach(b => b.disabled = true);
+
+      try {
+        const result = await apiCall('markManualAttendance', {
+          StudentID: mark.studentId,
+          GroupClassID: currentClass.GroupClassID,
+          Date: mark.date,
+          Status: status
+        });
+
+        if (result && result.success) {
+          // Update the already-loaded class book in memory instead of calling
+          // getClassBook() again. This removes one full backend read per click.
+          const student = currentBook?.students?.find(
+            s => String(s.StudentID) === String(mark.studentId)
+          );
+
+          if (student) {
+            student.attendance = student.attendance || {};
+            student.attendance[mark.date] = status;
+
+            const values = (currentBook.classDates || []).map(d => student.attendance[d]);
+            student.TotalPresent = values.filter(v => v === 'Present').length;
+            student.TotalAbsent = values.filter(v => v === 'Absent').length;
+            const marked = student.TotalPresent + student.TotalAbsent;
+            student.AttendancePercent = marked > 0
+              ? Math.round((student.TotalPresent / marked) * 100)
+              : 0;
+          }
+
+          showToast(`Marked ${mark.studentName} as ${status}`, 'success');
+          closeMarkModal();
+          renderClassBook();
+        } else {
+          showToast(result?.error || 'Failed to mark', 'error');
+        }
+      } finally {
+        attendanceSaving = false;
+        buttons.forEach(b => b.disabled = false);
       }
     }
     
