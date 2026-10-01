@@ -687,7 +687,7 @@
       const btn = document.getElementById('cart-confirm-btn');
       btn.disabled = true;
       
-      const r = await apiCall('labCreateBookingMulti', {returnGridPatch:true,
+      const r = await apiCall('labCreateBookingMulti', {returnGridPatch:true,feeCheckSeparately:true,
         branchId: cartStudent.branchId,
         studentId: cartStudent.StudentID,
         slots: bookingCart,
@@ -769,7 +769,7 @@
       
       let r;
       if (sessions.length > 1) {
-        r = await apiCall('labCreateBookingMulti', {returnGridPatch:true,
+        r = await apiCall('labCreateBookingMulti', {returnGridPatch:true,feeCheckSeparately:true,
           date: currentDate,
           branchId: pendingSlot.branchId,
           studentId: pendingStudent.StudentID,
@@ -787,7 +787,7 @@
         return;
       }
       
-      r = await apiCall('labCreateBooking', {returnGridPatch:true,
+      r = await apiCall('labCreateBooking', {returnGridPatch:true,feeCheckSeparately:true,
         date: currentDate,
         branchId: pendingSlot.branchId,
         pc: pendingSlot.pc, timeSlot: pendingSlot.timeSlot,
