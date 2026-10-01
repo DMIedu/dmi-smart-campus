@@ -203,7 +203,8 @@
     </div>
 
     <div class="grid-wrap fade-in">
-      <div class="grid-scroll" id="grid-container">
+      <div id="lab-attendance-panel"></div>
+    <div class="grid-scroll" id="grid-container">
         <div style="padding:4rem;text-align:center;color:var(--text-muted)"><div style="font-size:2rem;margin-bottom:0.75rem">⏳</div>Loading lab grid...</div>
       </div>
     </div>
@@ -323,6 +324,23 @@
     let slotsRequest = 0, lookupRequest = 0; const searchRequests = {};
     let currentSlots = null, pendingSlot = null, pendingStudent = null, pendingBookingId = null, qrScanner = null;
 
+    let labBulkSaving=false;const labAttendanceSelected=new Set();
+    function labAttendanceItems(){const out=[];if(currentSlots)Object.entries(currentSlots.slots).forEach(([pc,slots])=>Object.entries(slots).forEach(([time,s])=>{if(['Booked','Absent','Present'].includes(s.status))out.push({...s,pc,time});}));return out;}
+    function renderLabAttendance(){
+      const panel=document.getElementById('lab-attendance-panel');if(!panel)return;
+      if(!currentSlots||!['admin','reception','teacher'].includes(user.role)){panel.innerHTML='';return;}
+      const items=labAttendanceItems();panel.innerHTML=`<details class="card" style="padding:16px;margin-bottom:14px" open><summary><strong>Tick arrivals and save together — ${escapeHtml(currentSlots.date)}</strong></summary><p>Tick the booked slots attended. Unticked slots stay unchanged.</p><input class="input" aria-label="Scan lab registration" placeholder="Scan barcode and press Enter to find booked slots" onkeydown="if(event.key==='Enter'){event.preventDefault();findLabAttendance(this.value)}" ${labBulkSaving?'disabled':''}><div id="lab-arrival-list" style="display:flex;flex-wrap:wrap;gap:14px;max-height:170px;overflow:auto;padding:12px 0">${items.map((s,i)=>`<label data-registration="${escapeAttr(String(s.regNumber||'').toLowerCase())}"><input type="checkbox" aria-label="Select arrival ${escapeAttr(s.studentName)} ${escapeAttr(s.pc)} ${escapeAttr(s.time)}" onchange="toggleLabAttendance(${i},this.checked)" ${labAttendanceSelected.has(s.bookingId)?'checked':''} ${labBulkSaving||s.status==='Present'?'disabled':''}> ${escapeHtml(s.studentName)} · ${escapeHtml(s.pc)} · ${escapeHtml(s.time)} ${s.status==='Present'?'✓':''}</label>`).join('')||'No booked students for this date.'}</div><button class="btn btn-primary" onclick="saveLabAttendance()" ${!labAttendanceSelected.size||labBulkSaving?'disabled':''}>${labBulkSaving?'Saving…':'Save '+labAttendanceSelected.size+' arrivals'}</button> <button class="btn btn-ghost" onclick="labAttendanceSelected.clear();renderLabAttendance()" ${labBulkSaving?'disabled':''}>Clear ticks</button></details>`;
+    }
+    function toggleLabAttendance(i,checked){if(labBulkSaving)return;const s=labAttendanceItems()[i];if(checked)labAttendanceSelected.add(s.bookingId);else labAttendanceSelected.delete(s.bookingId);renderLabAttendance();}
+    function findLabAttendance(value){const query=value.trim().toLowerCase();document.querySelectorAll('#lab-arrival-list label').forEach(el=>el.style.display=!query||el.dataset.registration===query?'':'none');}
+    async function saveLabAttendance(){
+      if(labBulkSaving||bookingSaveBusy||!labAttendanceSelected.size||!currentSlots)return;
+      const date=currentSlots.date,branchId=document.getElementById('f-branch').value,ids=Array.from(labAttendanceSelected);labBulkSaving=true;renderLabAttendance();document.getElementById('f-date').disabled=true;document.getElementById('f-branch').disabled=true;
+      try{const r=await apiCall('labMarkBatchPresent',{BookingIDs:ids,date,branchId});if(!r?.success)throw Error(r?.error||'Save failed. Your ticks are kept for retry.');
+        const selected=new Set(r.BookingIDs);Object.values(currentSlots.slots).forEach(slots=>Object.entries(slots).forEach(([time,s])=>{if(selected.has(s.bookingId)&&s.status!=='Present'){const old=s.status.toLowerCase();currentSlots.summary[old]=Math.max(0,(currentSlots.summary[old]||0)-1);currentSlots.summary.present++;if(currentSlots.slotCounts?.[time]){if(old==='booked')currentSlots.slotCounts[time].booked--;currentSlots.slotCounts[time].present++;}s.status='Present';s.arrivedAt=r.arrivedAt;}}));labAttendanceSelected.clear();renderGrid();renderStats(currentSlots.summary);showToast('Saved '+r.saved+' arrivals','success');
+      }catch(e){showToast(e.message||'Save failed. Retry with the same ticks.','error');}finally{labBulkSaving=false;document.getElementById('f-date').disabled=false;document.getElementById('f-branch').disabled=user.role!=='admin';renderLabAttendance();}
+    }
+
     async function init() {
       document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
       const br = await apiCall('listBranches');
@@ -335,6 +353,7 @@
     }
 
     async function loadSlots() {
+      if(labBulkSaving)return;labAttendanceSelected.clear();
       const request = ++slotsRequest; ++lookupRequest;
       const date = document.getElementById('f-date').value;
       const branchId = document.getElementById('f-branch').value;
@@ -352,6 +371,7 @@
       currentSlots = result;
       renderGrid();
       renderStats(result.summary);
+      renderLabAttendance();
 
     }
 
@@ -412,7 +432,7 @@
     }
 
     function onSlotClick(pc, timeSlot) {
-      if(bookingSaveBusy)return;
+      if(bookingSaveBusy||labBulkSaving)return;
       if (!currentSlots) return; // grid still loading
       const s = currentSlots.slots[pc][timeSlot];
       
@@ -499,7 +519,7 @@
       }).join('');
       list.querySelectorAll('.search-result').forEach(el => {
         el.addEventListener('click', () => {
-          if(bookingSaveBusy)return;
+          if(bookingSaveBusy||labBulkSaving)return;
           const s = JSON.parse(el.getAttribute('data-student'));
           const fromHeader = el.getAttribute('data-header') === '1';
           if (fromHeader) {
@@ -849,7 +869,7 @@
     }
 
     function openModal(id) { document.getElementById(id).classList.add('active'); }
-    function closeModal(id) { if(bookingSaveBusy)return; if(id==='lookup-modal')++lookupRequest; document.getElementById(id).classList.remove('active'); if (id === 'lookup-modal') stopQR(); }
+    function closeModal(id) { if(bookingSaveBusy||labBulkSaving)return; if(id==='lookup-modal')++lookupRequest; document.getElementById(id).classList.remove('active'); if (id === 'lookup-modal') stopQR(); }
 
     function escapeHtml(str) {
       if (str === null || str === undefined) return '';
@@ -863,7 +883,7 @@
     for(const name of ['confirmCart','confirmBooking','markPresent','cancelBooking','confirmBlock','unblockSlot']) {
       const action=window[name];
       window[name]=async function(...args){
-        if(bookingSaveBusy)return;bookingSaveBusy=true;
+        if(bookingSaveBusy||labBulkSaving)return;bookingSaveBusy=true;
         const controls=Array.from(document.querySelectorAll('button,input,select'));const disabled=controls.map(el=>el.disabled);controls.forEach(el=>el.disabled=true);
         try{return await action(...args);}catch{showToast('Could not save. Please retry.','error');}
         finally{bookingSaveBusy=false;controls.forEach((el,i)=>el.disabled=disabled[i]);document.getElementById('f-branch').disabled=!!cartStudent || (user.role!=='admin' && !!user.branchId);renderCartChips();}
@@ -891,3 +911,4 @@
   </script>
 </body>
 </html>
+
