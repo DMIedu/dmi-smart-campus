@@ -3,6 +3,9 @@ if (!user) throw new Error('redirect');
 
 const studentForm = document.getElementById('student-form');
 const branchSelect = document.getElementById('branch-select');
+const departmentSelect = document.getElementById('department-select');
+const serialInput = document.getElementById('registration-serial');
+let allCourses = [];
 const courseSelect = document.getElementById('course-select');
 const registrationInput = document.getElementById('registration-number');
 const registrationHint = document.getElementById('registration-hint');
@@ -25,17 +28,15 @@ function campusToday() {
 function updateSubmitState() {
   submitButton.disabled = registering || savingCourse || (!manualRegistration.checked && !previewReady);
 }
+function renderCourses(selected = '') {
+  courseSelect.replaceChildren(new Option(departmentSelect.value ? 'Select course...' : 'Select department first...', ''));
+  allCourses.filter(c => c.department === departmentSelect.value).forEach(c => courseSelect.add(new Option(c.name,c.name)));
+  courseSelect.value = selected;
+}
 function addCourseOption(course) {
-  const name = String(course.name || '').trim();
-  if (!name) return;
-  const existing = Array.from(courseSelect.options).find(o => o.value.normalize('NFKC').toLowerCase() === name.normalize('NFKC').toLowerCase());
-  if (existing) return existing;
-  const category = String(course.category || 'Other');
-  let group = Array.from(courseSelect.children).find(el => el.tagName === 'OPTGROUP' && el.label === category);
-  if (!group) { group = document.createElement('optgroup'); group.label = category; courseSelect.appendChild(group); }
-  const option = new Option(name, name);
-  group.appendChild(option);
-  return option;
+  if (!allCourses.some(c => c.department === course.department && c.name.toLowerCase() === course.name.toLowerCase())) allCourses.push(course);
+  departmentSelect.value = course.department;
+  renderCourses(course.name);
 }
 async function loadRegistrationCourses() {
   const result = await apiCall('listRegistrationCourses');
@@ -43,7 +44,9 @@ async function loadRegistrationCourses() {
     showToast(result?.error || 'Could not load saved courses. Please try again.', 'error');
     return;
   }
-  result.courses.forEach(addCourseOption);
+  allCourses = result.courses;
+  renderCourses();
+  refreshRegistrationNumber();
 }
 async function loadBranches() {
   const result = await apiCall('listBranches');
@@ -59,32 +62,36 @@ async function loadBranches() {
 async function refreshRegistrationNumber() {
   const generation = ++previewGeneration;
   previewReady = false;
+  serialInput.value = '';
   if (manualRegistration.checked) {
     registrationHint.textContent = 'Enter a unique registration number. The server checks it when saving.';
     updateSubmitState(); return;
   }
   registrationInput.value = '';
-  const branchId = branchSelect.value, course = courseSelect.value;
-  if (!branchId || !course) {
-    registrationHint.textContent = 'Select a branch and course to show the next number.';
+  const branchId = branchSelect.value, department = departmentSelect.value, course = courseSelect.value;
+  if (!branchId || !department || !course) {
+    registrationHint.textContent = 'Select a branch, department and course to show the next number.';
     updateSubmitState(); return;
   }
   registrationHint.textContent = 'Getting the next registration number…';
   updateSubmitState();
-  const result = await apiCall('previewRegistrationNumber', {BranchID:branchId, Course:course});
-  if (generation !== previewGeneration || manualRegistration.checked || branchSelect.value !== branchId || courseSelect.value !== course) return;
+  const result = await apiCall('previewRegistrationNumber', {BranchID:branchId, Department:department, Course:course});
+  if (generation !== previewGeneration || manualRegistration.checked || branchSelect.value !== branchId || departmentSelect.value !== department || courseSelect.value !== course) return;
   if (result?.success) {
     registrationInput.value = result.registrationNumber;
-    registrationHint.textContent = 'Next number for this branch. The final number is confirmed when you register.';
+    serialInput.value = result.serialNumber;
+    registrationHint.textContent = 'Next number for this branch and department. The final number is confirmed when you register.';
     previewReady = true;
   } else registrationHint.textContent = result?.error || 'Could not get a registration number. Select the course again to retry.';
   updateSubmitState();
 }
 branchSelect.addEventListener('change', refreshRegistrationNumber);
+departmentSelect.addEventListener('change', () => { renderCourses(); refreshRegistrationNumber(); });
 courseSelect.addEventListener('change', refreshRegistrationNumber);
 registrationInput.addEventListener('focus', () => {
   if (manualRegistration.checked) return;
   if (!branchSelect.value) branchSelect.focus();
+  else if (!departmentSelect.value) departmentSelect.focus();
   else if (!courseSelect.value) courseSelect.focus();
 });
 manualRegistration.addEventListener('change', () => {
@@ -98,7 +105,7 @@ function setCoursePanel(open) {
   coursePanel.hidden = !open;
   courseToggle.setAttribute('aria-expanded', String(open));
   courseStatus.textContent = '';
-  if (open) document.getElementById('new-course-name').focus();
+  if (open) { document.getElementById('new-course-category').value = departmentSelect.value || 'English'; document.getElementById('new-course-name').focus(); }
   else courseToggle.focus();
 }
 courseToggle.addEventListener('click', () => setCoursePanel(coursePanel.hidden));
@@ -112,10 +119,9 @@ courseSaveButton.addEventListener('click', async () => {
   courseToggle.disabled = true; document.getElementById('cancel-course-btn').disabled = true;
   courseStatus.textContent = ''; updateSubmitState();
   try {
-    const result = await apiCall('createRegistrationCourse', {CourseName:name, Category:document.getElementById('new-course-category').value});
+    const result = await apiCall('createRegistrationCourse', {CourseName:name, Department:document.getElementById('new-course-category').value});
     if (!result?.success) { courseStatus.textContent = result?.error || 'Could not save the course. Try again.'; return; }
-    const option = addCourseOption(result.course);
-    courseSelect.value = option.value;
+    addCourseOption(result.course);
     input.value = ''; setCoursePanel(false);
     showToast(result.alreadyExists ? 'Course already exists. Selected it for you.' : 'Course saved and selected.', 'success');
     await refreshRegistrationNumber();
@@ -147,6 +153,7 @@ studentForm.addEventListener('submit', async event => {
 function addAnother() {
   document.getElementById('success-overlay').classList.remove('active');
   studentForm.reset();
+  renderCourses();
   document.getElementById('admission-date').value = campusToday();
   if (user.branchId) branchSelect.value = user.branchId;
   registrationInput.readOnly = true; registrationInput.required = false;
