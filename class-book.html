@@ -737,6 +737,7 @@
 
     // Load the class book matrix
     async function loadClassBook(options = {}) {
+      if(bulkSaving)return;bulkSelected.clear();
       const request = ++bookRequest;
       ++studentSearchRequest; clearTimeout(studentSearchTimer);
       document.getElementById('add-students-modal').classList.remove('active');
@@ -786,6 +787,31 @@
       renderClassBook();
     }
     
+    let bulkSaving=false;
+    const bulkSelected=new Set();
+    let bulkDate=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Colombo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    function renderBulkClass() {
+      return `<section class="card" style="padding:16px;margin-bottom:16px"><strong>Mark attendance together</strong>
+        <p>Tick the students, then save once. Unticked students stay unchanged.</p>
+        <label>Date <input class="input" type="date" aria-label="Attendance date" value="${bulkDate}" onchange="bulkDate=this.value;bulkSelected.clear();renderClassBook()" ${bulkSaving?'disabled':''}></label>
+        <input class="input" aria-label="Scan student registration" placeholder="Scan registration barcode and press Enter" onkeydown="if(event.key==='Enter'){event.preventDefault();scanBulkClass(this)}" ${bulkSaving?'disabled':''}>
+        <div style="display:flex;flex-wrap:wrap;gap:14px;padding:12px 0">${currentBook.students.map((s,i)=>s.BatchStatus&&s.BatchStatus!=='Active'?'':`<label><input type="checkbox" aria-label="Select ${escape(s.StudentName)}" ${bulkSelected.has(s.StudentID)?'checked':''} ${bulkSaving?'disabled':''} onchange="toggleBulkClass(${i},this.checked)"> ${escape(s.StudentName)} · ${escape(s.RegistrationNumber)} <small>${escape(s.attendance[bulkDate]||'Unmarked')}</small></label>`).join('')}</div>
+        <button class="btn btn-primary" id="bulk-present" onclick="saveBulkClass('Present')" ${!bulkSelected.size||bulkSaving?'disabled':''}>${bulkSaving?'Saving…':'Save '+bulkSelected.size+' as Present'}</button>
+        <button class="btn btn-ghost" id="bulk-absent" onclick="saveBulkClass('Absent')" ${!bulkSelected.size||bulkSaving?'disabled':''}>Save ${bulkSelected.size} as Absent</button>
+        <button class="btn btn-ghost" onclick="bulkSelected.clear();renderClassBook()" ${bulkSaving?'disabled':''}>Clear ticks</button></section>`;
+    }
+    function toggleBulkClass(index,checked){if(bulkSaving)return;const s=currentBook.students[index];if(checked)bulkSelected.add(s.StudentID);else bulkSelected.delete(s.StudentID);renderClassBook();}
+    function scanBulkClass(input){if(bulkSaving)return;const value=input.value.trim().toLowerCase(),s=currentBook.students.find(s=>String(s.RegistrationNumber).toLowerCase()===value&&(!s.BatchStatus||s.BatchStatus==='Active'));if(!s){showToast('Student is not active in this class','error');return;}bulkSelected.add(s.StudentID);renderClassBook();document.querySelector('[aria-label="Scan student registration"]').focus();}
+    async function saveBulkClass(status){
+      if(bulkSaving||markingAttendance||addingStudents||!bulkSelected.size||!currentClass)return;
+      const classId=currentClass.GroupClassID,date=bulkDate,ids=Array.from(bulkSelected);bulkSaving=true;renderClassBook();document.getElementById('class-select').disabled=true;
+      try{const result=await apiCall('markBatchAttendance',{GroupClassID:classId,Date:date,StudentIDs:ids,Status:status});
+        if(!result?.success)throw Error(result?.error||'Save failed. Your ticks are kept for retry.');
+        if(currentClass?.GroupClassID===classId){result.students.forEach(update=>{const s=currentBook.students.find(s=>s.StudentID===update.StudentID);if(s){Object.assign(s,update);s.attendance[date]=status;}});if(!currentBook.classDates.includes(date))currentBook.classDates.push(date);currentBook.classDates.sort();Object.assign(currentBook.summary,result.progress);bulkSelected.clear();}
+        showToast('Saved '+result.saved+' students as '+status,'success');
+      }catch(e){showToast(e.message||'Save failed. Retry with the same ticks.','error');}
+      finally{bulkSaving=false;document.getElementById('class-select').disabled=false;renderClassBook();}
+    }
     function renderClassBook() {
       const info = currentClass;
       const summary = currentBook.summary;
@@ -835,6 +861,7 @@
         </div>
       `;
       
+      if(students.length) html += renderBulkClass();
       if (students.length === 0) {
         html += `
           <div class="empty-state card">
@@ -934,7 +961,7 @@
     
     // === Add Students Modal ===
     async function openAddStudents() {
-      if (!currentClass || addingStudents) return;
+      if (!currentClass || addingStudents || bulkSaving) return;
       document.getElementById('modal-batch-name').textContent = currentClass.BatchName;
       document.getElementById('add-students-modal').classList.add('active');
       document.getElementById('student-search').value = '';
@@ -1049,7 +1076,7 @@
     
     // === Mark Attendance Modal ===
     function openMarkModal(studentId, studentName, date) {
-      if (!currentClass || markingAttendance) return;
+      if (!currentClass || markingAttendance || bulkSaving) return;
       pendingMark = { studentId, studentName, date, classId:currentClass.GroupClassID };
       document.getElementById('mark-student-name').textContent = studentName;
       document.getElementById('mark-date').textContent = new Date(date).toLocaleDateString('en-GB', {
@@ -1576,3 +1603,4 @@
   </script>
 </body>
 </html>
+
