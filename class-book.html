@@ -1058,11 +1058,11 @@
       addingStudents = true; const classId=currentClass.GroupClassID;
       const btn=document.getElementById('add-selected-btn'); btn.textContent='Adding...'; updateSelectionCount();
       try {
-        const result=await apiCall('addStudentsToBatch',{GroupClassID:classId,StudentIDs:Array.from(selectedToAdd)});
+        const result=await apiCall('addStudentsToBatch',{GroupClassID:classId,StudentIDs:Array.from(selectedToAdd),returnBookPatch:true});
         if (result?.success) {
           showToast(result.message || 'Students added','success');
           document.getElementById('add-students-modal').classList.remove('active'); ++studentSearchRequest;
-          if(document.getElementById('class-select').value===classId) loadClassBook({keepVisible:true});
+          if(document.getElementById('class-select').value===classId){if(result.bookPatch && currentBook && currentClass?.GroupClassID===classId){result.bookPatch.students.forEach(s=>{if(!currentBook.students.some(old=>old.StudentID===s.StudentID))currentBook.students.push(s);batchStudentIds.add(s.StudentID);});currentBook.classDates=Array.from(new Set([...currentBook.classDates,...result.bookPatch.classDates])).sort();renderClassBook();}else loadClassBook({keepVisible:true});}
         } else showToast(result?.error || 'Failed to add students','error');
       } catch { showToast('Could not save students. Please retry.','error'); }
       finally { addingStudents=false; btn.textContent='Add Selected'; updateSelectionCount(); }
