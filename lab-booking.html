@@ -337,10 +337,9 @@
       if(labBulkSaving||bookingSaveBusy||!labAttendanceSelected.size||!currentSlots)return;
       const date=currentSlots.date,branchId=document.getElementById('f-branch').value,ids=Array.from(labAttendanceSelected);labBulkSaving=true;renderLabAttendance();document.getElementById('f-date').disabled=true;document.getElementById('f-branch').disabled=true;
       try{const r=await apiCall('labMarkBatchPresent',{BookingIDs:ids,date,branchId});if(!r?.success)throw Error(r?.error||'Save failed. Your ticks are kept for retry.');
-        const selected=new Set(r.BookingIDs);Object.values(currentSlots.slots).forEach(slots=>Object.entries(slots).forEach(([time,s])=>{if(selected.has(s.bookingId)&&s.status!=='Present'){const old=s.status.toLowerCase();currentSlots.summary[old]=Math.max(0,(currentSlots.summary[old]||0)-1);currentSlots.summary.present++;if(currentSlots.slotCounts?.[time]){if(old==='booked')currentSlots.slotCounts[time].booked--;currentSlots.slotCounts[time].present++;}s.status='Present';s.arrivedAt=r.arrivedAt;}}));labAttendanceSelected.clear();renderGrid();renderStats(currentSlots.summary);showToast('Saved '+r.saved+' arrivals','success');
+        const selected=new Set(r.BookingIDs);Object.values(currentSlots.slots).forEach(slots=>Object.entries(slots).forEach(([time,s])=>{if(selected.has(s.bookingId)&&s.status!=='Present'){const old=s.status.toLowerCase();if(old==='absent'){currentSlots.summary.absent=Math.max(0,(currentSlots.summary.absent||0)-1);currentSlots.summary.booked++;}currentSlots.summary.present++;if(currentSlots.slotCounts?.[time]){if(old==='booked')currentSlots.slotCounts[time].booked--;if(old==='absent')currentSlots.slotCounts[time].absent--;currentSlots.slotCounts[time].present++;}s.status='Present';s.arrivedAt=r.arrivedAt;}}));labAttendanceSelected.clear();renderGrid();renderStats(currentSlots.summary);showToast('Saved '+r.saved+' arrivals','success');
       }catch(e){showToast(e.message||'Save failed. Retry with the same ticks.','error');}finally{labBulkSaving=false;document.getElementById('f-date').disabled=false;document.getElementById('f-branch').disabled=user.role!=='admin';renderLabAttendance();}
     }
-
     async function init() {
       document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
       const br = await apiCall('listBranches');
