@@ -15,6 +15,7 @@
       padding: 1.5rem;
     }
     
+    [hidden] { display:none !important; }
     .greeting {
       margin-bottom: 1.75rem;
     }
@@ -231,7 +232,7 @@
     <!-- Quick Actions -->
     <div class="card fade-in" style="animation-delay: 100ms; margin-bottom: 1.5rem;">
       <div class="section-title">Quick Actions</div>
-      <div class="quick-actions">
+      <div class="quick-actions"><a href="admin-courses.html" class="action-tile" id="admin-courses-action" hidden><span class="action-icon">📚</span><span class="action-label">Manage Courses</span></a>
         <a href="scanner.html" class="action-tile" style="background: linear-gradient(135deg, #1e3a8a, #1e2a5e); color: white; border: none;">
           <span class="action-icon">📷</span>
           <span class="action-label">Scan QR</span>
@@ -311,6 +312,7 @@
   <script>
     const user = requireAuth(['admin', 'reception']);
     if (!user) throw 'redirect';
+    document.getElementById('admin-courses-action').hidden = user.role !== 'admin';
     
     // Header user info
     document.getElementById('user-avatar').textContent = (user.name || 'U').charAt(0).toUpperCase();
