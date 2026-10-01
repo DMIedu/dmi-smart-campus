@@ -678,12 +678,17 @@
         </span>`).join('');
     }
     
+    function applyBookingPatch(result){
+      const patch=result?.gridPatch;if(!patch||!currentSlots||String(patch.branchId)!==document.getElementById('f-branch').value)return false;
+      let valid=true;patch.bookings.filter(b=>b.date===currentSlots.date).forEach(b=>{const old=currentSlots.slots[b.pc]?.[b.timeSlot];if(!old){valid=false;return;}if(old.bookingId!==b.bookingId){const status=old.status.toLowerCase();if(status!=='available'){valid=false;return;}currentSlots.summary.available--;currentSlots.summary.booked++;if(currentSlots.slotCounts?.[b.timeSlot])currentSlots.slotCounts[b.timeSlot].booked++;}currentSlots.slots[b.pc][b.timeSlot]={...b};});
+      if(!valid)return false;renderGrid();renderStats(currentSlots.summary);renderLabAttendance();return true;
+    }
     async function confirmCart() {
       if (bookingCart.length === 0) { showToast('No slots selected', 'warning'); return; }
       const btn = document.getElementById('cart-confirm-btn');
       btn.disabled = true;
       
-      const r = await apiCall('labCreateBookingMulti', {
+      const r = await apiCall('labCreateBookingMulti', {returnGridPatch:true,
         branchId: cartStudent.branchId,
         studentId: cartStudent.StudentID,
         slots: bookingCart,
@@ -700,7 +705,7 @@
           const booked=new Set((r.booked || []).map(b=>b.date+'|'+b.pc+'|'+b.timeSlot));
           bookingCart=bookingCart.filter(b=>!booked.has(b.date+'|'+b.pc+'|'+b.timeSlot)); renderCartChips();
         }else exitCartMode();
-        loadSlots();
+        if(!applyBookingPatch(r))loadSlots();
       } else {
         showToast(r?.error || 'Booking failed', 'error');
       }
@@ -765,7 +770,7 @@
       
       let r;
       if (sessions.length > 1) {
-        r = await apiCall('labCreateBookingMulti', {
+        r = await apiCall('labCreateBookingMulti', {returnGridPatch:true,
           date: currentDate,
           branchId: pendingSlot.branchId,
           studentId: pendingStudent.StudentID,
@@ -778,12 +783,12 @@
           let msg = 'Booked ' + (r.booked?.length || 0) + ' sessions for ' + pendingStudent.StudentName;
           if (r.failed && r.failed.length) msg += ' · ' + r.failed.length + ' failed';
           showToast(msg, r.failed && r.failed.length ? 'warning' : 'success');
-          document.getElementById('confirm-modal').classList.remove('active'); loadSlots();
+          document.getElementById('confirm-modal').classList.remove('active'); if(!applyBookingPatch(r))loadSlots();
         } else { showToast(r?.error || 'Booking failed', 'error'); }
         return;
       }
       
-      r = await apiCall('labCreateBooking', {
+      r = await apiCall('labCreateBooking', {returnGridPatch:true,
         date: currentDate,
         branchId: pendingSlot.branchId,
         pc: pendingSlot.pc, timeSlot: pendingSlot.timeSlot,
@@ -794,7 +799,7 @@
       btn.disabled = false; btn.textContent = '✓ Confirm Booking';
       if (r && r.success) {
         showToast('Booked: ' + pendingStudent.StudentName + ' @ ' + pendingSlot.pc, 'success');
-        document.getElementById('confirm-modal').classList.remove('active'); loadSlots();
+        document.getElementById('confirm-modal').classList.remove('active'); if(!applyBookingPatch(r))loadSlots();
       } else { showToast(r?.error || 'Booking failed', 'error'); }
     }
 
