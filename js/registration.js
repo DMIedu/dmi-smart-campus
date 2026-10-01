@@ -15,6 +15,8 @@ const coursePanel = document.getElementById('new-course-panel');
 const courseToggle = document.getElementById('add-course-toggle');
 const courseSaveButton = document.getElementById('save-course-btn');
 const courseStatus = document.getElementById('course-save-status');
+const canCreateCourse = user.role === 'admin';
+courseToggle.hidden = !canCreateCourse;
 let previewGeneration = 0;
 let previewReady = false;
 let registering = false;
@@ -102,6 +104,7 @@ manualRegistration.addEventListener('change', () => {
   refreshRegistrationNumber();
 });
 function setCoursePanel(open) {
+  if (open && !canCreateCourse) return;
   coursePanel.hidden = !open;
   courseToggle.setAttribute('aria-expanded', String(open));
   courseStatus.textContent = '';
@@ -111,7 +114,7 @@ function setCoursePanel(open) {
 courseToggle.addEventListener('click', () => setCoursePanel(coursePanel.hidden));
 document.getElementById('cancel-course-btn').addEventListener('click', () => setCoursePanel(false));
 courseSaveButton.addEventListener('click', async () => {
-  if (savingCourse) return;
+  if (!canCreateCourse || savingCourse) return;
   const input = document.getElementById('new-course-name');
   const name = input.value.trim();
   if (name.length < 2) { courseStatus.textContent = 'Enter a course name of at least 2 characters.'; input.focus(); return; }
