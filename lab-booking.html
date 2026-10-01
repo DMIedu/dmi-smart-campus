@@ -149,7 +149,7 @@
         <p class="page-subtitle">Book computer lab slots and mark lab attendance.</p>
       </div>
       <div style="display:flex;gap:0.5rem;align-items:center">
-        <span class="student-count-badge" id="student-count">— students</span>
+        <span class="student-count-badge" id="student-count">Search by name or registration</span>
         <button class="btn btn-primary" onclick="openQuickBook()">+ Quick Book</button>
         <button class="btn btn-ghost" onclick="loadSlots()">🔄 Refresh</button>
       </div>
@@ -168,7 +168,7 @@
       </div>
       <div class="field" style="position:relative">
         <label class="label">🔍 Quick Search</label>
-        <input type="text" class="input" id="header-search" placeholder="Type name to find & book..." oninput="onHeaderSearch()" autocomplete="off">
+        <input type="text" class="input" id="header-search" placeholder="Find student, then choose slots..." oninput="onHeaderSearch()" autocomplete="off">
         <div id="header-search-results" class="search-result-list" style="position:absolute;top:100%;left:0;right:0;background:#ffffff;border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,0.25);z-index:999;margin-top:4px;display:none;max-height:320px;overflow-y:auto;"></div>
       </div>
     </div>
@@ -176,6 +176,8 @@
     <!-- CART MODE BANNER -->
     <div class="cart-bar" id="cart-bar">
       <div style="font-weight:800;color:#6d28d9;">🛒 Booking for: <span id="cart-student-name">—</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><input class="input" id="cart-course" aria-label="Booking course" placeholder="Course" style="width:160px"><input class="input" id="cart-submodule" aria-label="Booking sub-module" placeholder="Sub-module" style="width:140px"></div>
+      <div id="cart-fee-status" style="width:100%"></div>
       <div id="cart-chips" style="display:flex;flex-wrap:wrap;gap:0.375rem;flex:1;"></div>
       <div style="display:flex;gap:0.5rem;">
         <button class="btn btn-ghost" onclick="exitCartMode()">✕ Cancel</button>
@@ -201,7 +203,8 @@
     </div>
 
     <div class="grid-wrap fade-in">
-      <div class="grid-scroll" id="grid-container">
+      <div id="lab-attendance-panel"></div>
+    <div class="grid-scroll" id="grid-container">
         <div style="padding:4rem;text-align:center;color:var(--text-muted)"><div style="font-size:2rem;margin-bottom:0.75rem">⏳</div>Loading lab grid...</div>
       </div>
     </div>
@@ -318,8 +321,25 @@
     if (!user) throw 'redirect';
     document.getElementById('header-name').textContent = user.name || 'User';
 
+    let slotsRequest = 0, lookupRequest = 0; const searchRequests = {};
     let currentSlots = null, pendingSlot = null, pendingStudent = null, pendingBookingId = null, qrScanner = null;
 
+    let labBulkSaving=false;const labAttendanceSelected=new Set();
+    function labAttendanceItems(){const out=[];if(currentSlots)Object.entries(currentSlots.slots).forEach(([pc,slots])=>Object.entries(slots).forEach(([time,s])=>{if(['Booked','Absent','Present'].includes(s.status))out.push({...s,pc,time});}));return out;}
+    function renderLabAttendance(){
+      const panel=document.getElementById('lab-attendance-panel');if(!panel)return;
+      if(!currentSlots||!['admin','reception','teacher'].includes(user.role)){panel.innerHTML='';return;}
+      const items=labAttendanceItems();panel.innerHTML=`<details class="card" style="padding:16px;margin-bottom:14px" open><summary><strong>Tick arrivals and save together — ${escapeHtml(currentSlots.date)}</strong></summary><p>Tick the booked slots attended. Unticked slots stay unchanged.</p><input class="input" aria-label="Scan lab registration" placeholder="Scan barcode and press Enter to find booked slots" onkeydown="if(event.key==='Enter'){event.preventDefault();findLabAttendance(this.value)}" ${labBulkSaving?'disabled':''}><div id="lab-arrival-list" style="display:flex;flex-wrap:wrap;gap:14px;max-height:170px;overflow:auto;padding:12px 0">${items.map((s,i)=>`<label data-registration="${escapeAttr(String(s.regNumber||'').toLowerCase())}"><input type="checkbox" aria-label="Select arrival ${escapeAttr(s.studentName)} ${escapeAttr(s.pc)} ${escapeAttr(s.time)}" onchange="toggleLabAttendance(${i},this.checked)" ${labAttendanceSelected.has(s.bookingId)?'checked':''} ${labBulkSaving||s.status==='Present'?'disabled':''}> ${escapeHtml(s.studentName)} · ${escapeHtml(s.pc)} · ${escapeHtml(s.time)} ${s.status==='Present'?'✓':''}</label>`).join('')||'No booked students for this date.'}</div><button class="btn btn-primary" onclick="saveLabAttendance()" ${!labAttendanceSelected.size||labBulkSaving?'disabled':''}>${labBulkSaving?'Saving…':'Save '+labAttendanceSelected.size+' arrivals'}</button> <button class="btn btn-ghost" onclick="labAttendanceSelected.clear();renderLabAttendance()" ${labBulkSaving?'disabled':''}>Clear ticks</button></details>`;
+    }
+    function toggleLabAttendance(i,checked){if(labBulkSaving)return;const s=labAttendanceItems()[i];if(checked)labAttendanceSelected.add(s.bookingId);else labAttendanceSelected.delete(s.bookingId);renderLabAttendance();}
+    function findLabAttendance(value){const query=value.trim().toLowerCase();document.querySelectorAll('#lab-arrival-list label').forEach(el=>el.style.display=!query||el.dataset.registration===query?'':'none');}
+    async function saveLabAttendance(){
+      if(labBulkSaving||bookingSaveBusy||!labAttendanceSelected.size||!currentSlots)return;
+      const date=currentSlots.date,branchId=document.getElementById('f-branch').value,ids=Array.from(labAttendanceSelected);labBulkSaving=true;renderLabAttendance();document.getElementById('f-date').disabled=true;document.getElementById('f-branch').disabled=true;
+      try{const r=await apiCall('labMarkBatchPresent',{BookingIDs:ids,date,branchId});if(!r?.success)throw Error(r?.error||'Save failed. Your ticks are kept for retry.');
+        const selected=new Set(r.BookingIDs);Object.values(currentSlots.slots).forEach(slots=>Object.entries(slots).forEach(([time,s])=>{if(selected.has(s.bookingId)&&s.status!=='Present'){const old=s.status.toLowerCase();if(old==='absent'){currentSlots.summary.absent=Math.max(0,(currentSlots.summary.absent||0)-1);currentSlots.summary.booked++;}currentSlots.summary.present++;if(currentSlots.slotCounts?.[time]){if(old==='booked')currentSlots.slotCounts[time].booked--;if(old==='absent')currentSlots.slotCounts[time].absent--;currentSlots.slotCounts[time].present++;}s.status='Present';s.arrivedAt=r.arrivedAt;}}));labAttendanceSelected.clear();renderGrid();renderStats(currentSlots.summary);showToast('Saved '+r.saved+' arrivals','success');
+      }catch(e){showToast(e.message||'Save failed. Retry with the same ticks.','error');}finally{labBulkSaving=false;document.getElementById('f-date').disabled=false;document.getElementById('f-branch').disabled=user.role!=='admin';renderLabAttendance();}
+    }
     async function init() {
       document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
       const br = await apiCall('listBranches');
@@ -332,12 +352,17 @@
     }
 
     async function loadSlots() {
+      if(labBulkSaving)return;labAttendanceSelected.clear();
+      const request = ++slotsRequest; ++lookupRequest;
       const date = document.getElementById('f-date').value;
       const branchId = document.getElementById('f-branch').value;
       if (!date || !branchId) return;
-      currentSlots = null; // block clicks on stale grid while loading
+      document.getElementById('header-search-results').style.display='none';
+      ['lookup-modal','confirm-modal','booking-modal','block-modal'].forEach(closeModal);
+      currentSlots = null; renderLabAttendance(); // block clicks on stale grid while loading
       document.getElementById('grid-container').innerHTML = '<div style="padding:3rem;text-align:center;color:var(--text-muted)">⏳ Loading ' + escapeHtml(date) + '...</div>';
       const result = await apiCall('labGetSlots', { date, branchId });
+      if(request !== slotsRequest || date !== document.getElementById('f-date').value || branchId !== document.getElementById('f-branch').value) return;
       if (!result || !result.success) {
         document.getElementById('grid-container').innerHTML = '<div style="padding:3rem;text-align:center;color:#dc2626">⚠ ' + escapeHtml(result?.error || 'Failed') + '</div>';
         return;
@@ -345,29 +370,12 @@
       currentSlots = result;
       renderGrid();
       renderStats(result.summary);
-      updateStudentCount(branchId);
+      renderLabAttendance();
+
     }
 
-    // Cached per branch: this call downloads every student record, so it must
-    // run once per branch per session -- NOT on every date change.
-    const _studentCountCache = {};
-    async function updateStudentCount(branchId) {
-      if (!branchId) return;
-      const el = document.getElementById('student-count');
-      if (_studentCountCache[branchId] !== undefined) {
-        el.textContent = _studentCountCache[branchId].toLocaleString() + ' students';
-        return;
-      }
-      try {
-        const r = await apiCall('listStudents', { branchId, limit: 5000 });
-        if (r && r.success && Array.isArray(r.students)) {
-          const n = r.students.filter(s => String(s.BranchID) === String(branchId)).length;
-          _studentCountCache[branchId] = n;
-          el.textContent = n.toLocaleString() + ' students';
-        }
-      } catch (e) {}
-    }
-
+    // Student searches return a short list; no background download of the student database.
+    
     function renderStats(s) {
       document.getElementById('s-available').textContent = s.available;
       document.getElementById('s-booked').textContent = s.booked;
@@ -423,6 +431,7 @@
     }
 
     function onSlotClick(pc, timeSlot) {
+      if(bookingSaveBusy||labBulkSaving)return;
       if (!currentSlots) return; // grid still loading
       const s = currentSlots.slots[pc][timeSlot];
       
@@ -438,7 +447,7 @@
       }
       
       if (s.status === 'Available') {
-        pendingSlot = { pc, timeSlot };
+        pendingSlot = { pc, timeSlot, date:currentSlots.date, branchId:document.getElementById('f-branch').value };
         document.getElementById('lookup-slot-info').textContent = pc + ' · ' + timeSlot;
         openModal('lookup-modal'); switchTab('qr');
       } else if (s.status === 'Blocked') {
@@ -488,7 +497,10 @@
 
     async function doSearch(q, targetId, isHeader) {
       const branchId = document.getElementById('f-branch').value;
+      const request = (searchRequests[targetId] || 0)+1; searchRequests[targetId]=request;
       const r = await apiCall('labSearchStudents', { query: q, branchId, limit: 12 });
+      const inputId=isHeader ? 'header-search' : 'search-input';
+      if((!isHeader && !document.getElementById('lookup-modal').classList.contains('active')) || searchRequests[targetId] !== request || document.getElementById(inputId).value.trim() !== q || document.getElementById('f-branch').value !== branchId) return;
       const list = document.getElementById(targetId);
       if (isHeader) list.style.display = 'block';
       if (!r || !r.success || r.students.length === 0) {
@@ -497,7 +509,7 @@
       }
       list.innerHTML = r.students.map(s => {
         const mismatch = String(s.BranchID) !== String(branchId);
-        const safe = JSON.stringify(s).replace(/"/g, '&quot;');
+        const safe = escapeHtml(JSON.stringify(s));
         return `<div class="search-result" data-student="${safe}" data-header="${isHeader?'1':'0'}">
           <div class="sr-avatar">${escapeHtml((s.StudentName||'?').charAt(0).toUpperCase())}</div>
           <div class="sr-info"><div class="sr-name">${escapeHtml(s.StudentName)}</div>
@@ -506,7 +518,8 @@
       }).join('');
       list.querySelectorAll('.search-result').forEach(el => {
         el.addEventListener('click', () => {
-          const s = JSON.parse(el.getAttribute('data-student').replace(/&quot;/g, '"'));
+          if(bookingSaveBusy||labBulkSaving)return;
+          const s = JSON.parse(el.getAttribute('data-student'));
           const fromHeader = el.getAttribute('data-header') === '1';
           if (fromHeader) {
             document.getElementById('header-search-results').style.display = 'none';
@@ -520,21 +533,21 @@
       });
     }
 
-    // When booking from header search (no slot chosen yet) — pick first available
+    // Select the student first, then choose exact slots on the real grid.
     function pickSlotForStudent() {
-      if (!currentSlots) return;
-      for (const pc of currentSlots.pcs) {
-        for (const ts of currentSlots.timeSlots) {
-          if (currentSlots.slots[pc][ts].status === 'Available') {
-            pendingSlot = { pc, timeSlot: ts };
-            proceedToConfirm();
-            return;
-          }
-        }
-      }
-      showToast('No available slots', 'warning');
+      if (!currentSlots || !pendingStudent) return;
+      const branchId=document.getElementById('f-branch').value;
+      if(String(pendingStudent.BranchID)!==String(branchId)){showToast('Select the student’s branch first','warning');return;}
+      cartStudent={...pendingStudent,branchId};bookingCart=[];
+      document.getElementById('cart-course').value=pendingStudent.Course || '';
+      document.getElementById('cart-submodule').value=pendingStudent.SubModule || '';
+      document.getElementById('f-branch').disabled=true;
+      document.getElementById('cart-student-name').textContent=cartStudent.StudentName;
+      document.getElementById('cart-bar').classList.add('active');renderCartChips();renderGrid();
+      fetchAndShowFeeStatusInModal(pendingStudent,'cart-fee-status');
+      showToast('Choose the slots below. Change the date to add other days.','success');
     }
-
+    
     async function manualLookup() {
       const v = document.getElementById('manual-input').value.trim();
       if (!v) return;
@@ -544,7 +557,9 @@
 
     async function lookupStudent(params) {
       const branchId = document.getElementById('f-branch').value;
+      const request=++lookupRequest, slot=pendingSlot;
       const r = await apiCall('labLookupStudent', { ...params, branchId });
+      if(request!==lookupRequest || slot!==pendingSlot || branchId!==document.getElementById('f-branch').value || !document.getElementById('lookup-modal').classList.contains('active'))return;
       if (!r || !r.success) {
         const err = document.getElementById('lookup-error');
         err.textContent = '⚠ ' + (r?.error || 'Not found'); err.style.display = 'flex';
@@ -561,7 +576,7 @@
       const fee = s.FeeStatus || 'Pending';
       const feeClass = fee === 'Paid' ? 'fee-paid' : fee === 'Overdue' ? 'fee-overdue' : 'fee-pending';
 
-      document.getElementById('confirm-slot-info').textContent = pendingSlot.pc + ' · ' + pendingSlot.timeSlot + ' · ' + document.getElementById('f-date').value;
+      document.getElementById('confirm-slot-info').textContent = pendingSlot.pc + ' · ' + pendingSlot.timeSlot + ' · ' + pendingSlot.date;
       document.getElementById('confirm-student').innerHTML = `
         <div class="sc-head">
           <div class="sc-avatar">${escapeHtml((s.StudentName||'?').charAt(0).toUpperCase())}</div>
@@ -610,17 +625,20 @@
     
     function enterCartMode() {
       cartStudent = {
+        ...pendingStudent, branchId:pendingSlot.branchId,
         StudentID: pendingStudent.StudentID,
         StudentName: pendingStudent.StudentName,
         course: document.getElementById('edit-course').value.trim(),
         subModule: document.getElementById('edit-submodule').value.trim()
       };
       bookingCart = [{
-        date: document.getElementById('f-date').value,
+        date: pendingSlot.date,
         pc: pendingSlot.pc,
         timeSlot: pendingSlot.timeSlot
       }];
       closeModal('confirm-modal');
+      document.getElementById('cart-course').value=cartStudent.course;document.getElementById('cart-submodule').value=cartStudent.subModule;
+      document.getElementById('f-branch').disabled=true;fetchAndShowFeeStatusInModal(pendingStudent,'cart-fee-status');
       document.getElementById('cart-student-name').textContent = cartStudent.StudentName;
       document.getElementById('cart-bar').classList.add('active');
       renderCartChips();
@@ -630,8 +648,9 @@
     
     function exitCartMode() {
       bookingCart = []; cartStudent = null;
+      document.getElementById('f-branch').disabled=user.role !== 'admin' && !!user.branchId;
       document.getElementById('cart-bar').classList.remove('active');
-      renderGrid();
+      if(currentSlots) renderGrid();
     }
     
     function cartHas(date, pc, ts) {
@@ -651,23 +670,29 @@
     
     function renderCartChips() {
       document.getElementById('cart-count').textContent = bookingCart.length;
+      document.getElementById('cart-confirm-btn').disabled=!bookingCart.length;
       document.getElementById('cart-chips').innerHTML = bookingCart.map((c, i) => `
         <span class="cart-chip">${escapeHtml(c.date.slice(5))} · ${escapeHtml(c.pc)} · ${escapeHtml(c.timeSlot)}
-          <span onclick="bookingCart.splice(${i},1);renderCartChips();renderGrid();" style="cursor:pointer;font-weight:800;">×</span>
+          <span onclick="if(!bookingSaveBusy){bookingCart.splice(${i},1);renderCartChips();if(currentSlots)renderGrid();}" style="cursor:pointer;font-weight:800;">×</span>
         </span>`).join('');
     }
     
+    function applyBookingPatch(result){
+      const patch=result?.gridPatch;if(!patch||!currentSlots||String(patch.branchId)!==document.getElementById('f-branch').value)return false;
+      let valid=true;patch.bookings.filter(b=>b.date===currentSlots.date).forEach(b=>{const old=currentSlots.slots[b.pc]?.[b.timeSlot];if(!old){valid=false;return;}if(old.bookingId!==b.bookingId){const status=old.status.toLowerCase();if(status!=='available'){valid=false;return;}currentSlots.summary.available--;currentSlots.summary.booked++;if(currentSlots.slotCounts?.[b.timeSlot])currentSlots.slotCounts[b.timeSlot].booked++;}currentSlots.slots[b.pc][b.timeSlot]={...b};});
+      if(!valid)return false;renderGrid();renderStats(currentSlots.summary);renderLabAttendance();return true;
+    }
     async function confirmCart() {
       if (bookingCart.length === 0) { showToast('No slots selected', 'warning'); return; }
       const btn = document.getElementById('cart-confirm-btn');
       btn.disabled = true;
       
-      const r = await apiCall('labCreateBookingMulti', {
-        branchId: document.getElementById('f-branch').value,
+      const r = await apiCall('labCreateBookingMulti', {returnGridPatch:true,
+        branchId: cartStudent.branchId,
         studentId: cartStudent.StudentID,
         slots: bookingCart,
-        course: cartStudent.course,
-        subModule: cartStudent.subModule
+        course: document.getElementById('cart-course').value.trim(),
+        subModule: document.getElementById('cart-submodule').value.trim()
       });
       
       btn.disabled = false;
@@ -675,20 +700,24 @@
         let msg = 'Booked ' + (r.booked?.length || 0) + ' sessions for ' + cartStudent.StudentName;
         if (r.failed && r.failed.length) msg += ' · failed: ' + r.failed.map(f => f.date + ' ' + f.timeSlot + ' (' + f.error + ')').join('; ');
         showToast(msg, r.failed && r.failed.length ? 'warning' : 'success');
-        exitCartMode();
-        loadSlots();
+        if(r.failed?.length){
+          const booked=new Set((r.booked || []).map(b=>b.date+'|'+b.pc+'|'+b.timeSlot));
+          bookingCart=bookingCart.filter(b=>!booked.has(b.date+'|'+b.pc+'|'+b.timeSlot)); renderCartChips();
+        }else exitCartMode();
+        if(!applyBookingPatch(r))loadSlots();
       } else {
         showToast(r?.error || 'Booking failed', 'error');
       }
     }
     
     // ===== FEE STATUS IN CONFIRM MODAL =====
-    async function fetchAndShowFeeStatusInModal(student) {
-      const alertsBox = document.getElementById('confirm-alerts');
+    async function fetchAndShowFeeStatusInModal(student, targetId='confirm-alerts') {
+      const alertsBox = document.getElementById(targetId);
       if (!alertsBox) return;
       alertsBox.innerHTML = '<div style="padding:8px;color:#94a3b8;font-size:0.75rem;">Checking fee status...</div>';
       
       const r = await apiCall('getFeeStatus', { studentId: student.StudentID });
+      if(pendingStudent?.StudentID !== student.StudentID) return;
       const fs = r?.feeStatus;
       
       if (!fs) {
@@ -697,7 +726,7 @@
       }
       
       window._ffeContext = fs;
-      window._ffeContext.studentSC = student;
+      window._ffeContext.studentSC = student;window._ffeContext.feeTargetId=targetId;
       
       if (fs.status === 'Paid') {
         alertsBox.innerHTML = '<div style="padding:10px;background:#d1fae5;color:#065f46;border-radius:8px;font-weight:600;">✅ Fees: Paid — up to date</div>';
@@ -723,7 +752,7 @@
         if (result && result.success) {
           showToast('✓ Enrolled: ' + result.studentName + ' · Balance Rs. ' + Number(result.balance).toLocaleString(), 'success');
           // Refresh the fee status in the confirm modal
-          if (ctx.studentSC) fetchAndShowFeeStatusInModal(ctx.studentSC);
+          if (ctx.studentSC) fetchAndShowFeeStatusInModal(ctx.studentSC,ctx.feeTargetId || 'confirm-alerts');
         }
       });
     }
@@ -732,7 +761,7 @@
       const btn = document.getElementById('confirm-btn');
       btn.disabled = true; btn.textContent = 'Booking...';
       
-      const currentDate = document.getElementById('f-date').value;
+      const currentDate = pendingSlot.date;
       const sessions = [{ date: currentDate, pc: pendingSlot.pc, timeSlot: pendingSlot.timeSlot }];
       document.querySelectorAll('.extra-slot-cb:checked').forEach(cb => {
         sessions.push({ date: currentDate, pc: pendingSlot.pc, timeSlot: cb.value });
@@ -740,9 +769,9 @@
       
       let r;
       if (sessions.length > 1) {
-        r = await apiCall('labCreateBookingMulti', {
+        r = await apiCall('labCreateBookingMulti', {returnGridPatch:true,
           date: currentDate,
-          branchId: document.getElementById('f-branch').value,
+          branchId: pendingSlot.branchId,
           studentId: pendingStudent.StudentID,
           slots: sessions,
           course: document.getElementById('edit-course').value.trim(),
@@ -753,14 +782,14 @@
           let msg = 'Booked ' + (r.booked?.length || 0) + ' sessions for ' + pendingStudent.StudentName;
           if (r.failed && r.failed.length) msg += ' · ' + r.failed.length + ' failed';
           showToast(msg, r.failed && r.failed.length ? 'warning' : 'success');
-          closeModal('confirm-modal'); loadSlots();
+          document.getElementById('confirm-modal').classList.remove('active'); if(!applyBookingPatch(r))loadSlots();
         } else { showToast(r?.error || 'Booking failed', 'error'); }
         return;
       }
       
-      r = await apiCall('labCreateBooking', {
+      r = await apiCall('labCreateBooking', {returnGridPatch:true,
         date: currentDate,
-        branchId: document.getElementById('f-branch').value,
+        branchId: pendingSlot.branchId,
         pc: pendingSlot.pc, timeSlot: pendingSlot.timeSlot,
         studentId: pendingStudent.StudentID,
         course: document.getElementById('edit-course').value.trim(),
@@ -769,7 +798,7 @@
       btn.disabled = false; btn.textContent = '✓ Confirm Booking';
       if (r && r.success) {
         showToast('Booked: ' + pendingStudent.StudentName + ' @ ' + pendingSlot.pc, 'success');
-        closeModal('confirm-modal'); loadSlots();
+        document.getElementById('confirm-modal').classList.remove('active'); if(!applyBookingPatch(r))loadSlots();
       } else { showToast(r?.error || 'Booking failed', 'error'); }
     }
 
@@ -809,13 +838,13 @@
 
     async function markPresent() {
       const r = await apiCall('labMarkPresent', { bookingId: pendingBookingId });
-      if (r && r.success) { showToast('Marked present ✓', 'success'); closeModal('booking-modal'); loadSlots(); }
+      if (r && r.success) { showToast('Marked present ✓', 'success'); document.getElementById('booking-modal').classList.remove('active'); loadSlots(); }
       else showToast(r?.error || 'Failed', 'error');
     }
     async function cancelBooking() {
       if (!confirm('Cancel this booking?')) return;
       const r = await apiCall('labCancelBooking', { bookingId: pendingBookingId });
-      if (r && r.success) { showToast('Booking cancelled', 'success'); closeModal('booking-modal'); loadSlots(); }
+      if (r && r.success) { showToast('Booking cancelled', 'success'); document.getElementById('booking-modal').classList.remove('active'); loadSlots(); }
       else showToast(r?.error || 'Failed', 'error');
     }
     function showBlockModal(pc, timeSlot) {
@@ -828,7 +857,7 @@
         date: document.getElementById('f-date').value, branchId: document.getElementById('f-branch').value,
         pc: pendingSlot.pc, timeSlot: pendingSlot.timeSlot, reason: document.getElementById('block-reason').value.trim()
       });
-      if (r && r.success) { showToast(r.action === 'unblocked' ? 'Unblocked' : 'Blocked', 'success'); closeModal('block-modal'); document.getElementById('block-reason').value=''; loadSlots(); }
+      if (r && r.success) { showToast(r.action === 'unblocked' ? 'Unblocked' : 'Blocked', 'success'); document.getElementById('block-modal').classList.remove('active'); document.getElementById('block-reason').value=''; loadSlots(); }
       else showToast(r?.error || 'Failed', 'error');
     }
     async function unblockSlot(bookingId) {
@@ -844,7 +873,7 @@
     }
 
     function openModal(id) { document.getElementById(id).classList.add('active'); }
-    function closeModal(id) { document.getElementById(id).classList.remove('active'); if (id === 'lookup-modal') stopQR(); }
+    function closeModal(id) { if(bookingSaveBusy||labBulkSaving)return; if(id==='lookup-modal')++lookupRequest; document.getElementById(id).classList.remove('active'); if (id === 'lookup-modal') stopQR(); }
 
     function escapeHtml(str) {
       if (str === null || str === undefined) return '';
@@ -853,6 +882,17 @@
     function escapeAttr(str) { return escapeHtml(str).replace(/'/g, '&#39;'); }
     function pad2(n) { return String(n).padStart(2, '0'); }
 
+    // Keep a single save in flight, and preserve the selected booking context.
+    let bookingSaveBusy=false;
+    for(const name of ['confirmCart','confirmBooking','markPresent','cancelBooking','confirmBlock','unblockSlot']) {
+      const action=window[name];
+      window[name]=async function(...args){
+        if(bookingSaveBusy||labBulkSaving)return;bookingSaveBusy=true;
+        const controls=Array.from(document.querySelectorAll('button,input,select'));const disabled=controls.map(el=>el.disabled);controls.forEach(el=>el.disabled=true);
+        try{return await action(...args);}catch{showToast('Could not save. Please retry.','error');}
+        finally{bookingSaveBusy=false;controls.forEach((el,i)=>el.disabled=disabled[i]);document.getElementById('f-branch').disabled=!!cartStudent || (user.role!=='admin' && !!user.branchId);renderCartChips();}
+      };
+    }
     document.addEventListener('keydown', e => { if (e.key === 'Escape') ['lookup-modal','confirm-modal','booking-modal','block-modal'].forEach(closeModal); });
     document.addEventListener('contextmenu', e => {
       const slot = e.target.closest('.slot-available');
@@ -875,3 +915,4 @@
   </script>
 </body>
 </html>
+

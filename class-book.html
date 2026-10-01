@@ -576,6 +576,7 @@
         <input type="text" class="input" id="student-search" placeholder="🔍 Search by name or registration number..." oninput="filterStudents()">
       </div>
       
+      <div id="selected-student-chips" style="padding:0 1.5rem;display:flex;flex-wrap:wrap;gap:6px"></div>
       <div class="modal-body" id="students-pick-list">
         <div class="empty-state">
           <div class="empty-icon">⏳</div>
@@ -624,6 +625,9 @@
     let currentClass = null;
     let currentBook = null;
     let allStudents = [];
+    let bookRequest = 0, studentSearchRequest = 0, studentSearchTimer;
+    let addingStudents = false, markingAttendance = false;
+    const selectedStudentDetails = new Map();
     let batchStudentIds = new Set();
     let selectedToAdd = new Set();
     let pendingMark = null;
@@ -732,7 +736,12 @@
     }
 
     // Load the class book matrix
-    async function loadClassBook() {
+    async function loadClassBook(options = {}) {
+      if(bulkSaving)return;bulkSelected.clear();
+      const request = ++bookRequest;
+      ++studentSearchRequest; clearTimeout(studentSearchTimer);
+      document.getElementById('add-students-modal').classList.remove('active');
+      if(!markingAttendance)closeMarkModal();
       const selectEl = document.getElementById('class-select');
       // Read value from the selected option directly (most reliable)
       const classId = selectEl.options[selectEl.selectedIndex] 
@@ -741,13 +750,21 @@
       const mainContent = document.getElementById('main-content');
       
       if (!classId || classId.trim() === '') {
+        currentClass=null; currentBook=null; ++studentSearchRequest;
+        document.getElementById('edit-class-btn').style.display='none'; document.getElementById('message-batch-btn').style.display='none';
         mainContent.innerHTML = '';
         return;
       }
       
-      mainContent.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div>Loading class book...</div></div>';
+      if (!options.keepVisible || currentClass?.GroupClassID !== classId) {
+        currentClass = null; currentBook = null;
+        document.getElementById('edit-class-btn').style.display = 'none';
+        document.getElementById('message-batch-btn').style.display = 'none';
+        mainContent.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div>Loading class book...</div></div>';
+      }
       
       const result = await apiCall('getClassBook', { GroupClassID: classId.trim() });
+      if (request !== bookRequest || document.getElementById('class-select').value !== classId) return;
       
       if (!result || !result.success) {
         mainContent.innerHTML = `
@@ -770,6 +787,31 @@
       renderClassBook();
     }
     
+    let bulkSaving=false;
+    const bulkSelected=new Set();
+    let bulkDate=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Colombo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    function renderBulkClass() {
+      return `<section class="card" style="padding:16px;margin-bottom:16px"><strong>Mark attendance together</strong>
+        <p>Tick the students, then save once. Unticked students stay unchanged.</p>
+        <label>Date <input class="input" type="date" aria-label="Attendance date" value="${bulkDate}" onchange="bulkDate=this.value;bulkSelected.clear();renderClassBook()" ${bulkSaving?'disabled':''}></label>
+        <input class="input" aria-label="Scan student registration" placeholder="Scan registration barcode and press Enter" onkeydown="if(event.key==='Enter'){event.preventDefault();scanBulkClass(this)}" ${bulkSaving?'disabled':''}>
+        <div style="display:flex;flex-wrap:wrap;gap:14px;padding:12px 0">${currentBook.students.map((s,i)=>s.BatchStatus&&s.BatchStatus!=='Active'?'':`<label><input type="checkbox" aria-label="Select ${escape(s.StudentName)}" ${bulkSelected.has(s.StudentID)?'checked':''} ${bulkSaving?'disabled':''} onchange="toggleBulkClass(${i},this.checked)"> ${escape(s.StudentName)} · ${escape(s.RegistrationNumber)} <small>${escape(s.attendance[bulkDate]||'Unmarked')}</small></label>`).join('')}</div>
+        <button class="btn btn-primary" id="bulk-present" onclick="saveBulkClass('Present')" ${!bulkSelected.size||bulkSaving?'disabled':''}>${bulkSaving?'Saving…':'Save '+bulkSelected.size+' as Present'}</button>
+        <button class="btn btn-ghost" id="bulk-absent" onclick="saveBulkClass('Absent')" ${!bulkSelected.size||bulkSaving?'disabled':''}>Save ${bulkSelected.size} as Absent</button>
+        <button class="btn btn-ghost" onclick="bulkSelected.clear();renderClassBook()" ${bulkSaving?'disabled':''}>Clear ticks</button></section>`;
+    }
+    function toggleBulkClass(index,checked){if(bulkSaving)return;const s=currentBook.students[index];if(checked)bulkSelected.add(s.StudentID);else bulkSelected.delete(s.StudentID);renderClassBook();}
+    function scanBulkClass(input){if(bulkSaving)return;const value=input.value.trim().toLowerCase(),s=currentBook.students.find(s=>String(s.RegistrationNumber).toLowerCase()===value&&(!s.BatchStatus||s.BatchStatus==='Active'));if(!s){showToast('Student is not active in this class','error');return;}bulkSelected.add(s.StudentID);renderClassBook();document.querySelector('[aria-label="Scan student registration"]').focus();}
+    async function saveBulkClass(status){
+      if(bulkSaving||markingAttendance||addingStudents||!bulkSelected.size||!currentClass)return;
+      const classId=currentClass.GroupClassID,date=bulkDate,ids=Array.from(bulkSelected);bulkSaving=true;renderClassBook();document.getElementById('class-select').disabled=true;
+      try{const result=await apiCall('markBatchAttendance',{GroupClassID:classId,Date:date,StudentIDs:ids,Status:status});
+        if(!result?.success)throw Error(result?.error||'Save failed. Your ticks are kept for retry.');
+        if(currentClass?.GroupClassID===classId){result.students.forEach(update=>{const s=currentBook.students.find(s=>s.StudentID===update.StudentID);if(s){Object.assign(s,update);s.attendance[date]=status;}});if(!currentBook.classDates.includes(date))currentBook.classDates.push(date);currentBook.classDates.sort();Object.assign(currentBook.summary,result.progress);bulkSelected.clear();}
+        showToast('Saved '+result.saved+' students as '+status,'success');
+      }catch(e){showToast(e.message||'Save failed. Retry with the same ticks.','error');}
+      finally{bulkSaving=false;document.getElementById('class-select').disabled=false;renderClassBook();}
+    }
     function renderClassBook() {
       const info = currentClass;
       const summary = currentBook.summary;
@@ -819,6 +861,7 @@
         </div>
       `;
       
+      if(students.length) html += renderBulkClass();
       if (students.length === 0) {
         html += `
           <div class="empty-state card">
@@ -918,22 +961,27 @@
     
     // === Add Students Modal ===
     async function openAddStudents() {
+      if (!currentClass || addingStudents || bulkSaving) return;
       document.getElementById('modal-batch-name').textContent = currentClass.BatchName;
       document.getElementById('add-students-modal').classList.add('active');
       document.getElementById('student-search').value = '';
-      selectedToAdd.clear();
-      updateSelectionCount();
-      
-      // Load students if not already
-      const result = await apiCall('searchStudents', {});
-      
-      if (!result || !result.success) {
-        document.getElementById('students-pick-list').innerHTML = 
-          '<div class="empty-state">Failed to load students</div>';
-        return;
+      ++studentSearchRequest; clearTimeout(studentSearchTimer);
+      allStudents = []; selectedToAdd.clear(); selectedStudentDetails.clear(); updateSelectionCount();
+      document.getElementById('students-pick-list').innerHTML = '<div class="empty-state">Type at least two letters, a registration number or phone number to find students in this branch.</div>';
+      document.getElementById('student-search').focus();
+    }
+
+    async function searchBatchStudents(query, request) {
+      const classId = currentClass?.GroupClassID;
+      const branchId = ALL_CLASSES.find(c => c.GroupClassID === classId)?.BranchID;
+      if (!branchId || request !== studentSearchRequest) return;
+      document.getElementById('students-pick-list').innerHTML = '<div class="empty-state">Searching students...</div>';
+      const result = await apiCall('labSearchStudents', {query, branchId, limit:30});
+      if (request !== studentSearchRequest || currentClass?.GroupClassID !== classId || !document.getElementById('add-students-modal').classList.contains('active')) return;
+      if (!result?.success) {
+        document.getElementById('students-pick-list').innerHTML = '<div class="empty-state">Search failed. Please try again.</div>'; return;
       }
-      
-      allStudents = result.students;
+      allStudents = result.students || [];
       renderStudentPickList();
     }
     
@@ -983,53 +1031,53 @@
     }
     
     function toggleStudent(sid) {
+      if(addingStudents || batchStudentIds.has(sid))return;
       if (selectedToAdd.has(sid)) selectedToAdd.delete(sid);
-      else selectedToAdd.add(sid);
+      else { selectedToAdd.add(sid); selectedStudentDetails.set(sid, allStudents.find(s => s.StudentID === sid)); }
       renderStudentPickList();
       updateSelectionCount();
     }
     
     function filterStudents() {
-      renderStudentPickList();
+      clearTimeout(studentSearchTimer); const request = ++studentSearchRequest;
+      const query = document.getElementById('student-search').value.trim();
+      if (query.length < 2) { allStudents=[]; document.getElementById('students-pick-list').innerHTML='<div class="empty-state">Type at least two characters to search. Your selected students stay selected.</div>'; return; }
+      studentSearchTimer = setTimeout(() => searchBatchStudents(query,request),250);
     }
     
     function updateSelectionCount() {
       const n = selectedToAdd.size;
       document.getElementById('selection-count').textContent = `${n} selected`;
-      document.getElementById('add-selected-btn').disabled = n === 0;
+      document.getElementById('add-selected-btn').disabled = n === 0 || addingStudents;
+      const chips=document.getElementById('selected-student-chips'); chips.replaceChildren();
+      selectedToAdd.forEach(id=>{const button=document.createElement('button');button.type='button';button.className='btn btn-ghost';button.textContent=(selectedStudentDetails.get(id)?.StudentName || id)+' ×';button.disabled=addingStudents;button.addEventListener('click',()=>toggleStudent(id));chips.appendChild(button);});
     }
     
     async function addSelectedStudents() {
-      if (selectedToAdd.size === 0) return;
-      
-      const btn = document.getElementById('add-selected-btn');
-      btn.disabled = true;
-      btn.textContent = 'Adding...';
-      
-      const result = await apiCall('addStudentsToBatch', {
-        GroupClassID: currentClass.GroupClassID,
-        StudentIDs: Array.from(selectedToAdd)
-      });
-      
-      btn.disabled = false;
-      btn.textContent = 'Add Selected';
-      
-      if (result && result.success) {
-        showToast(result.message, 'success');
-        closeAddStudents();
-        loadClassBook();
-      } else {
-        showToast(result?.error || 'Failed to add students', 'error');
-      }
+      if (!selectedToAdd.size || !currentClass || addingStudents) return;
+      addingStudents = true; const classId=currentClass.GroupClassID;
+      const btn=document.getElementById('add-selected-btn'); btn.textContent='Adding...'; updateSelectionCount();
+      try {
+        const result=await apiCall('addStudentsToBatch',{GroupClassID:classId,StudentIDs:Array.from(selectedToAdd),returnBookPatch:true});
+        if (result?.success) {
+          showToast(result.message || 'Students added','success');
+          document.getElementById('add-students-modal').classList.remove('active'); ++studentSearchRequest;
+          if(document.getElementById('class-select').value===classId){if(result.bookPatch && currentBook && currentClass?.GroupClassID===classId){result.bookPatch.students.forEach(s=>{if(!currentBook.students.some(old=>old.StudentID===s.StudentID))currentBook.students.push(s);batchStudentIds.add(s.StudentID);});currentBook.classDates=Array.from(new Set([...currentBook.classDates,...result.bookPatch.classDates])).sort();renderClassBook();}else loadClassBook({keepVisible:true});}
+        } else showToast(result?.error || 'Failed to add students','error');
+      } catch { showToast('Could not save students. Please retry.','error'); }
+      finally { addingStudents=false; btn.textContent='Add Selected'; updateSelectionCount(); }
     }
     
     function closeAddStudents() {
+      if (addingStudents) return;
+      ++studentSearchRequest; clearTimeout(studentSearchTimer);
       document.getElementById('add-students-modal').classList.remove('active');
     }
     
     // === Mark Attendance Modal ===
     function openMarkModal(studentId, studentName, date) {
-      pendingMark = { studentId, studentName, date };
+      if (!currentClass || markingAttendance || bulkSaving) return;
+      pendingMark = { studentId, studentName, date, classId:currentClass.GroupClassID };
       document.getElementById('mark-student-name').textContent = studentName;
       document.getElementById('mark-date').textContent = new Date(date).toLocaleDateString('en-GB', {
         weekday: 'long', day: 'numeric', month: 'short', year: 'numeric'
@@ -1038,27 +1086,24 @@
     }
     
     function closeMarkModal() {
+      if (markingAttendance) return;
       document.getElementById('mark-modal').classList.remove('active');
       pendingMark = null;
     }
     
     async function setAttendance(status) {
-      if (!pendingMark) return;
-      
-      const result = await apiCall('markManualAttendance', {
-        StudentID: pendingMark.studentId,
-        GroupClassID: currentClass.GroupClassID,
-        Date: pendingMark.date,
-        Status: status
-      });
-      
-      if (result && result.success) {
-        showToast(`Marked ${pendingMark.studentName} as ${status}`, 'success');
-        closeMarkModal();
-        loadClassBook();
-      } else {
-        showToast(result?.error || 'Failed to mark', 'error');
-      }
+      if (!pendingMark || markingAttendance) return;
+      const mark={...pendingMark}; markingAttendance=true;
+      const buttons=document.querySelectorAll('#mark-modal button'); buttons.forEach(b=>b.disabled=true);
+      try {
+        const result=await apiCall('markManualAttendance',{StudentID:mark.studentId,GroupClassID:mark.classId,Date:mark.date,Status:status});
+        if(result?.success) {
+          showToast('Marked '+mark.studentName+' as '+status,'success');
+          document.getElementById('mark-modal').classList.remove('active'); pendingMark=null;
+          if(document.getElementById('class-select').value===mark.classId) loadClassBook({keepVisible:true});
+        } else showToast(result?.error || 'Failed to mark','error');
+      } catch { showToast('Could not save attendance. Please retry.','error'); }
+      finally { markingAttendance=false;buttons.forEach(b=>b.disabled=false); }
     }
     
     // === Export CSV ===
@@ -1558,3 +1603,4 @@
   </script>
 </body>
 </html>
+

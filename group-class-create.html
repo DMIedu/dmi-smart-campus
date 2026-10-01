@@ -414,7 +414,7 @@
       
       <div class="success-actions">
         <button class="btn btn-ghost" onclick="addAnother()">Create Another</button>
-        <button class="btn btn-primary" onclick="window.location.href='reception-dashboard.html'">Done</button>
+        <a class="btn btn-primary" id="open-created-class" href="class-book.html">Add Students to This Class</a>
       </div>
     </div>
   </div>
@@ -427,7 +427,7 @@
     // Set today as default start date
     document.getElementById('start-date').value = new Date().toISOString().split('T')[0];
     
-    let teachers = [];
+    let teachers = [], teacherRequest = 0, creatingClass = false;
     
     // Load branches
     async function loadBranches() {
@@ -456,10 +456,12 @@
     
     // Load teachers (filtered by branch)
     async function loadTeachers() {
+      const request=++teacherRequest;
       const branchId = document.getElementById('branch-select').value;
       const params = branchId && user.role === 'admin' ? { branchId } : {};
       
       const result = await apiCall('listTeachers', params);
+      if(request!==teacherRequest || document.getElementById('branch-select').value!==branchId)return;
       const select = document.getElementById('teacher-select');
       
       if (!result || !result.success) {
@@ -487,7 +489,19 @@
       updatePreview();
     });
     
-    loadBranches();
+    async function loadClassCourses() {
+      const select=document.querySelector('[name="Course"]');
+      select.replaceChildren(new Option('Loading saved courses...',''));
+      let result;try{result=await apiCall('listRegistrationCourses');}catch{result=null;}
+      select.replaceChildren(new Option(result?.success?'Select course...':'Could not load courses. Refresh to retry.',''));
+      if(!result?.success)return;
+      for(const department of ['IT','English','Kids','IELTS','BCSS']){
+        const group=document.createElement('optgroup');group.label=department;
+        (result.courses || []).filter(c=>c.department===department).forEach(c=>group.appendChild(new Option(c.name,c.name)));
+        if(group.children.length)select.appendChild(group);
+      }
+    }
+    loadBranches();loadClassCourses();
     
     // Day picker logic
     const selectedDays = new Set();
@@ -538,6 +552,7 @@
     // Submit handler
     document.getElementById('class-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      if(creatingClass)return;
       
       if (!daysInput.value) {
         showToast('Please select at least one class day', 'warning');
@@ -545,7 +560,7 @@
       }
       
       const btn = document.getElementById('submit-btn');
-      btn.disabled = true;
+      creatingClass=true;btn.disabled = true;
       btn.textContent = 'Creating...';
       
       const formData = new FormData(e.target);
@@ -559,13 +574,15 @@
         params.BranchID = user.branchId;
       }
       
-      const result = await apiCall('createGroupClass', params);
+      let result;try{result=await apiCall('createGroupClass', params);}catch{result={success:false,error:'Could not create class. Please retry.'};}
+      creatingClass=false;
       
       btn.disabled = false;
       btn.textContent = 'Create Class';
       
       if (result && result.success) {
         document.getElementById('success-name').textContent = result.groupClass.BatchName;
+        document.getElementById('open-created-class').href='class-book.html?class='+encodeURIComponent(result.groupClass.GroupClassID);
         document.getElementById('success-overlay').classList.add('active');
       } else {
         showToast(result?.error || 'Failed to create class', 'error');
