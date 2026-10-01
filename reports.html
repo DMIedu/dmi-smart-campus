@@ -278,6 +278,7 @@
       line-height: 1.5;
     }
     
+    [hidden] { display:none !important; }
     .user-pill { display: flex; align-items: center; gap: 0.75rem; }
     .logout-btn {
       background: transparent;
@@ -351,6 +352,7 @@
         <div class="report-tab-name">Student Summary</div>
         <div class="report-tab-desc">Individual attendance record</div>
       </div>
+      <div class="report-tab" data-report="absence" id="absence-report-tab" hidden><div class="report-tab-icon">📆</div><div class="report-tab-name">Students Not Attending</div><div class="report-tab-desc">Joining dates, absence days, branch and course</div></div>
       <div class="report-tab" data-report="classbook">
         <div class="report-tab-icon">📖</div>
         <div class="report-tab-name">Class Book</div>
@@ -358,6 +360,8 @@
       </div>
     </div>
     
+    <!-- Admin follow-up report -->
+    <div style="margin-bottom:1.25rem" id="admin-report-shortcuts" hidden><a class="btn btn-ghost" href="admin-courses.html">Manage Courses</a></div>
     <!-- Dynamic filters -->
     <div class="filters-bar fade-in" id="filters-bar"></div>
     
@@ -372,11 +376,14 @@
   </div>
   
   <script src="js/api.js"></script>
+  <script src="js/absence-report.js"></script>
   <script>
     const user = requireAuth(['admin', 'reception', 'teacher']);
     if (!user) throw 'redirect';
     
     document.getElementById('header-name').textContent = user.name || 'User';
+    document.getElementById('absence-report-tab').hidden = user.role !== 'admin';
+    document.getElementById('admin-report-shortcuts').hidden = user.role !== 'admin';
     
     let currentReport = 'daily';
     let branches = [];
@@ -411,12 +418,14 @@
     // Render filters based on report type
     function renderFilters() {
       const bar = document.getElementById('filters-bar');
-      const today = new Date().toISOString().split('T')[0];
+      const today = absenceToday();
       const thisMonth = today.substring(0, 7);
       
       let html = '';
       
-      if (currentReport === 'daily') {
+      if (currentReport === 'absence') {
+        html = renderAbsenceFilters(branches);
+      } else if (currentReport === 'daily') {
         html = `
           <div class="filter-field">
             <label class="label">Date</label>
@@ -479,6 +488,7 @@
       `;
       
       bar.innerHTML = html;
+      if (currentReport === 'absence') loadAbsenceCourses();
       
       // Load students for student report
       if (currentReport === 'student') {
@@ -529,7 +539,9 @@
       let result;
       
       try {
-        if (currentReport === 'daily') {
+        if (currentReport === 'absence') {
+          result = await generateAbsenceReport();
+        } else if (currentReport === 'daily') {
           const date = document.getElementById('f-date').value;
           result = await apiCall('reportDailyAttendance', { date });
           renderDaily(result, date);
@@ -892,7 +904,7 @@
       // Rows
       table.querySelectorAll('tbody tr').forEach(tr => {
         const cells = Array.from(tr.querySelectorAll('td')).map(td => 
-          '"' + td.textContent.trim().replace(/"/g, '""') + '"');
+          '"' + (/^[=+@\-\t\r]/.test(td.textContent.trim()) ? "'" : '') + td.textContent.trim().replace(/"/g, '""') + '"');
         csv += cells.join(',') + '\n';
       });
       
