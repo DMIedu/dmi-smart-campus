@@ -360,7 +360,7 @@
       if (!date || !branchId) return;
       document.getElementById('header-search-results').style.display='none';
       ['lookup-modal','confirm-modal','booking-modal','block-modal'].forEach(closeModal);
-      currentSlots = null; // block clicks on stale grid while loading
+      currentSlots = null; renderLabAttendance(); // block clicks on stale grid while loading
       document.getElementById('grid-container').innerHTML = '<div style="padding:3rem;text-align:center;color:var(--text-muted)">⏳ Loading ' + escapeHtml(date) + '...</div>';
       const result = await apiCall('labGetSlots', { date, branchId });
       if(request !== slotsRequest || date !== document.getElementById('f-date').value || branchId !== document.getElementById('f-branch').value) return;
