@@ -69,6 +69,7 @@
     }
     
     .field { display: flex; flex-direction: column; }
+    [hidden] { display: none !important; }
     
     .field .label {
       display: flex;
@@ -258,58 +259,51 @@
         <div class="form-section-title">Course & Branch</div>
         <div class="form-grid">
           <div class="field">
-            <label class="label">Branch <span class="required">*</span></label>
+            <label class="label" for="branch-select">Branch <span class="required">*</span></label>
             <select class="select" name="BranchID" id="branch-select" required>
               <option value="">Loading branches...</option>
             </select>
           </div>
           
+          <div class="field"><label class="label" for="department-select">Department <span class="required">*</span></label><select class="select" name="Department" id="department-select" required><option value="">Select department...</option><option>English</option><option>IT</option><option>BCSS</option><option>Kids</option></select></div>
           <div class="field">
-            <label class="label">Course <span class="required">*</span></label>
-            <select class="select" name="Course" required>
-              <option value="">Select course...</option>
-              <optgroup label="IT Diplomas">
-                <option value="DITEC">DITEC</option>
-                <option value="DPCA">DPCA</option>
-                <option value="DOA">DOA</option>
-                <option value="DMO">DMO</option>
-                <option value="DWD">DWD</option>
-              </optgroup>
-              <optgroup label="English">
-                <option value="Diploma in English Part 1">Diploma in English Part 1</option>
-                <option value="Diploma in English Part 2">Diploma in English Part 2</option>
-                <option value="Business English">Business English</option>
-                <option value="Spoken English">Spoken English</option>
-                <option value="IELTS">IELTS</option>
-                <option value="A1">A1</option>
-                <option value="Foundation">Foundation</option>
-              </optgroup>
-              <optgroup label="Vocational">
-                <option value="Beauty">Beauty</option>
-                <option value="Tailoring">Tailoring</option>
-                <option value="Cake Icing">Cake Icing</option>
-                <option value="Aari Work">Aari Work</option>
-              </optgroup>
-              <optgroup label="Other IT">
-                <option value="MS Office">MS Office</option>
-                <option value="Web Development">Web Development</option>
-                <option value="Graphic Design">Graphic Design</option>
-                <option value="Computer Hardware">Computer Hardware</option>
-                <option value="Programming">Programming</option>
-              </optgroup>
-              <option value="Other">Other</option>
-            </select>
+            <label class="label" for="course-select">Course <span class="required">*</span></label>
+            <select class="select" name="Course" id="course-select" required><option value="">Select department first...</option></select>
+            <button type="button" class="btn btn-ghost" id="add-course-toggle" hidden aria-expanded="false" aria-controls="new-course-panel" style="align-self:flex-start;margin-top:0.25rem;">+ Add new course</button>
+          </div>
+
+          <div class="field form-grid-full" id="new-course-panel" hidden>
+            <div class="form-grid">
+              <div class="field">
+                <label class="label" for="new-course-name">New course name</label>
+                <input class="input" type="text" id="new-course-name" maxlength="100" placeholder="e.g. Robotics">
+              </div>
+              <div class="field">
+                <label class="label" for="new-course-category">Department</label>
+                <select class="select" id="new-course-category">
+                  <option>English</option><option>IT</option><option>BCSS</option><option>Kids</option>
+                </select>
+              </div>
+            </div>
+            <span class="field-hint">Saved courses will be available for future student registrations.</span>
+            <p class="field-hint" id="course-save-status" role="status"></p>
+            <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+              <button class="btn btn-primary" type="button" id="save-course-btn">Save course</button>
+              <button class="btn btn-ghost" type="button" id="cancel-course-btn">Cancel</button>
+            </div>
           </div>
           
+          <div class="field"><label class="label" for="registration-serial">Serial Number</label><input class="input" id="registration-serial" readonly placeholder="Automatic"><span class="field-hint">Separate sequence for each branch and department, every year.</span></div>
           <div class="field">
             <label class="label">Admission Date</label>
             <input type="date" class="input" name="AdmissionDate" id="admission-date">
           </div>
           
           <div class="field">
-            <label class="label">Registration Number</label>
-            <input type="text" class="input" name="RegistrationNumber" placeholder="Auto-generated if blank">
-            <span class="field-hint">Leave blank to auto-generate</span>
+            <label class="label" for="registration-number">Registration Number</label>
+            <input type="text" class="input" name="RegistrationNumber" id="registration-number" readonly placeholder="Select branch, department and course" aria-describedby="registration-hint">
+            <span class="field-hint" id="registration-hint" role="status">Select a branch, department and course to show the next number.</span>
+            <label class="field-hint" style="display:flex;align-items:center;gap:0.4rem;margin-top:0.5rem;"><input type="checkbox" id="manual-registration"> Enter number manually</label>
           </div>
         </div>
       </div>
@@ -378,89 +372,6 @@
   </div>
   
   <script src="js/api.js"></script>
-  <script>
-    const user = requireAuth(['admin', 'reception']);
-    if (!user) throw 'redirect';
-    
-    // Set today's date as default
-    document.getElementById('admission-date').value = new Date().toISOString().split('T')[0];
-    
-    // Load branches into dropdown
-    async function loadBranches() {
-      const result = await apiCall('listBranches');
-      const select = document.getElementById('branch-select');
-      
-      if (!result || !result.success) {
-        select.innerHTML = '<option value="">Failed to load branches</option>';
-        return;
-      }
-      
-      let options = '<option value="">Select branch...</option>';
-      result.branches.forEach(b => {
-        const selected = String(b.BranchID) === String(user.branchId) ? 'selected' : '';
-        options += `<option value="${b.BranchID}" ${selected}>${b.BranchName}</option>`;
-      });
-      select.innerHTML = options;
-      
-      // If reception (not admin), lock to their branch
-      if (user.role === 'reception') {
-        select.disabled = true;
-      }
-    }
-    
-    loadBranches();
-    
-    // Submit handler
-    document.getElementById('student-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const btn = document.getElementById('submit-btn');
-      btn.disabled = true;
-      btn.textContent = 'Registering...';
-      
-      // Collect form data
-      const formData = new FormData(e.target);
-      const params = {};
-      for (const [key, value] of formData.entries()) {
-        if (value) params[key] = value;
-      }
-      
-      // For locked dropdown, FormData may miss it
-      if (user.role === 'reception' && !params.BranchID) {
-        params.BranchID = user.branchId;
-      }
-      
-      const result = await apiCall('createStudent', params);
-      
-      btn.disabled = false;
-      btn.textContent = 'Register Student';
-      
-      if (result && result.success) {
-        // Show success modal with credentials
-        document.getElementById('success-name').textContent = result.student.StudentName;
-        document.getElementById('cred-reg').textContent = result.student.RegistrationNumber;
-        document.getElementById('cred-user').textContent = result.loginCredentials.username;
-        document.getElementById('cred-pass').textContent = result.loginCredentials.defaultPassword;
-        document.getElementById('cred-qr').textContent = result.student.QRCodeID;
-        document.getElementById('success-overlay').classList.add('active');
-      } else {
-        showToast(result?.error || 'Failed to register student', 'error');
-      }
-    });
-    
-    function addAnother() {
-      document.getElementById('success-overlay').classList.remove('active');
-      document.getElementById('student-form').reset();
-      document.getElementById('admission-date').value = new Date().toISOString().split('T')[0];
-      
-      // Restore branch selection for reception
-      if (user.role === 'reception') {
-        document.getElementById('branch-select').value = user.branchId;
-      }
-      
-      document.querySelector('input[name="StudentName"]').focus();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  </script>
+  <script src="js/registration.js"></script>
 </body>
 </html>
