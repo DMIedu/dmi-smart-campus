@@ -48,6 +48,7 @@
     .slot-time { font-weight: 600; }
     .slot-free { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
     .slot.mine { background: #ede9fe; border-color: #7c3aed; color: #5b21b6; cursor: default; }
+    .slot.selected { background:#ede9fe; border-color:#7c3aed; color:#5b21b6; }
     .slot.mine .slot-free { color: #7c3aed; font-weight: 600; }
     .slot.full, .slot.disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; border-style: dashed; }
     .mine-row {
@@ -110,6 +111,7 @@
     <div id="rules-note"></div>
 
     <div id="my-bookings"></div>
+    <div id="selection-bar" style="margin:12px 0"></div>
     <div id="days"><div class="empty">Loading available sessions…</div></div>
   </div>
 
@@ -137,6 +139,7 @@
 
     let DATA = null;
     let pending = null;
+    let selectedSlots = new Map(), bookingSaving = false;
 
     function esc(s) {
       return String(s == null ? '' : s)
@@ -153,7 +156,7 @@
       }
       DATA = r;
       document.getElementById('student-name').textContent = r.student.name || '';
-      renderQuota(); renderRules(); renderMine(); renderDays();
+      renderQuota(); renderRules(); renderMine(); renderDays(); renderSelection();
     }
 
     function renderQuota() {
@@ -241,11 +244,11 @@
                       <div class="slot-free">Day limit reached</div>
                     </div>`;
           }
-          return `<div class="slot"
-                       onclick="openBook('${esc(day.date)}','${esc(s.timeSlot)}')">
+          return `<button type="button" class="slot ${selectedSlots.has(key)?'selected':''}" aria-pressed="${selectedSlots.has(key)}" ${bookingSaving?'disabled':''}
+                       onclick="toggleBooking('${esc(day.date)}','${esc(s.timeSlot)}')">
                     <div class="slot-time">${esc(s.timeSlot)}</div>
                     <div class="slot-free">${s.freePcs} free</div>
-                  </div>`;
+                  </button>`;
         }).join('');
 
         return `
@@ -265,9 +268,28 @@
         html || '<div class="empty">No sessions available right now.</div>';
     }
 
+    function toggleBooking(date,timeSlot) {
+      if(bookingSaving||!DATA)return;
+      const key=date+'|'+timeSlot;
+      if(selectedSlots.has(key))selectedSlots.delete(key);
+      else {
+        const day=DATA.days.find(d=>d.date===date),slot=day?.slots.find(s=>s.timeSlot===timeSlot);
+        if(!day||!slot||slot.freePcs<=0||DATA.myBookings.some(b=>b.date===date&&b.timeSlot===timeSlot))return;
+        const remaining=DATA.rules.maxInWindow>0?Math.max(0,DATA.rules.maxInWindow-DATA.myBookings.length):3;
+        if(selectedSlots.size>=Math.min(3,remaining)){showToast('Your selection has reached the booking limit.','error');return;}
+        const selectedDay=Array.from(selectedSlots.values()).filter(s=>s.date===date).length;
+        if(day.myBookings+selectedDay>=DATA.rules.maxPerDay){showToast('The daily booking limit has been reached.','error');return;}
+        selectedSlots.set(key,{date,timeSlot});
+      }
+      renderDays();renderSelection();
+    }
+    function renderSelection() {
+      document.getElementById('selection-bar').innerHTML=`<div class="rules-note">Select up to three sessions, then save once. <strong>${selectedSlots.size} selected</strong><div style="margin-top:8px">${Array.from(selectedSlots.values()).map(s=>esc(s.date)+' · '+esc(s.timeSlot)).join('<br>')}</div><button class="btn btn-primary" ${bookingSaving||!selectedSlots.size?'disabled':''} onclick="openBook()">Save selected (${selectedSlots.size})</button> <button class="btn btn-ghost" ${bookingSaving||!selectedSlots.size?'disabled':''} onclick="selectedSlots.clear();renderDays();renderSelection()">Clear selection</button></div>`;
+    }
     function openBook(date, timeSlot) {
-      pending = { date, timeSlot };
-      document.getElementById('book-when').textContent = date + ' · ' + timeSlot;
+      if(bookingSaving||!selectedSlots.size)return;
+      pending = Array.from(selectedSlots.values());
+      document.getElementById('book-when').textContent = pending.map(s=>s.date+' · '+s.timeSlot).join(' / ');
       document.getElementById('sub-input').value = '';
       const sugg = (DATA.rules.subModules && DATA.rules.subModules.length)
         ? DATA.rules.subModules
@@ -280,33 +302,33 @@
     }
 
     function closeBook() {
+      if(bookingSaving)return;
       pending = null;
       document.getElementById('book-modal').classList.remove('active');
     }
 
     async function confirmBooking() {
-      if (!pending) return;
+      if (!pending || bookingSaving) return;
       const subModule = document.getElementById('sub-input').value.trim();
       if (!subModule) { showToast('Please say what you will practise', 'error'); return; }
 
       const btn = document.getElementById('confirm-btn');
-      btn.disabled = true; btn.textContent = 'Booking…';
+      bookingSaving=true;btn.disabled = true; btn.textContent = 'Booking…';renderDays();renderSelection();
 
-      const r = await apiCall('studentLabBook', {
-        date: pending.date, timeSlot: pending.timeSlot, subModule: subModule
-      });
-
-      btn.disabled = false; btn.textContent = 'Confirm booking';
+      let r;try{r = await apiCall('studentLabBook', {slots:pending,subModule});}catch(e){r={success:false,error:'Could not confirm. Your selections are kept; retry the same sessions.'};}
+      bookingSaving=false;btn.disabled = false; btn.textContent = 'Confirm booking';
 
       if (r && r.success) {
         showToast(r.message || 'Booked', 'success');
-        closeBook(); load();
+        selectedSlots.clear();closeBook(); await load();
       } else {
         showToast((r && r.error) || 'Booking failed', 'error');
       }
+      renderDays();renderSelection();
     }
 
     async function cancelBooking(bookingId) {
+      if(bookingSaving)return;
       if (!confirm('Cancel this booking?')) return;
       const r = await apiCall('studentLabCancel', { bookingId: bookingId });
       if (r && r.success) { showToast('Booking cancelled', 'success'); load(); }
