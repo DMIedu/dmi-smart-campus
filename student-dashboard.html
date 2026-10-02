@@ -522,15 +522,15 @@
         <div class="att-detail">
           <div class="att-title">My Attendance</div>
           <div class="att-row">
-            <span class="att-row-label">Classes attended</span>
+            <span class="att-row-label">Sessions attended</span>
             <span class="att-row-value" id="att-present" style="color:#059669">—</span>
           </div>
           <div class="att-row">
-            <span class="att-row-label">Classes missed</span>
+            <span class="att-row-label">Sessions missed</span>
             <span class="att-row-value" id="att-absent" style="color:#dc2626">—</span>
           </div>
           <div class="att-row">
-            <span class="att-row-label">Total classes</span>
+            <span class="att-row-label">Recorded sessions</span>
             <span class="att-row-value" id="att-total">—</span>
           </div>
           
@@ -582,6 +582,12 @@
       </div>
     </div>
     
+    <div class="card fade-in" style="margin-bottom:1.5rem">
+      <div class="section-title">My Learning Progress</div>
+      <div id="learning-totals"></div>
+      <div style="overflow:auto"><table style="width:100%;border-collapse:collapse;min-width:650px" id="module-progress"><thead><tr><th>Course / Module</th><th>Type</th><th>Attended</th><th>Missed</th><th>Hours covered</th><th>Theory attended</th></tr></thead><tbody></tbody></table></div>
+      <p style="font-size:.8rem;color:var(--text-muted);margin-top:12px">Only recorded Present and Absent sessions count. Hours use the scheduled session duration, not clocked time. Future bookings do not count. Older records without a module or duration show as not recorded. Group classes without a theory/practical label are shown separately.</p>
+    </div>
     <!-- Profile details -->
     <div class="card fade-in" style="animation-delay: 240ms">
       <div class="section-title">Profile Details</div>
@@ -650,6 +656,9 @@
       const cls = data.class;
       const att = data.attendance;
       const next = data.nextClass;
+      const learning=data.learningProgress||{modules:[]};
+      document.getElementById('learning-totals').innerHTML=`<p style="margin-bottom:16px"><strong>${escape(learning.hours??0)} scheduled hours covered</strong> · ${escape(learning.theoryClasses??0)} theory classes attended · ${escape(learning.practicalSessions??0)} practical sessions attended${learning.unclassifiedClasses?' · '+escape(learning.unclassifiedClasses)+' group classes awaiting type':''}${learning.unknownHours?' · Duration not recorded for '+escape(learning.unknownHours)+' attended sessions':''}</p>`;
+      document.querySelector('#module-progress tbody').innerHTML=(learning.modules||[]).map(m=>`<tr><td style="padding:10px;border-top:1px solid #e2e8f0">${escape(m.course)}<br><strong>${escape(m.module)}</strong></td><td>${escape(m.type)}</td><td>${escape(m.attended)}</td><td>${escape(m.missed)}</td><td>${m.unknownHours&&m.hours===0?'Not recorded':escape(m.hours)+' h'}${m.unknownHours&&m.hours>0?' + '+escape(m.unknownHours)+' unknown':''}</td><td>${m.type==='Group class'?'Not classified':escape(m.theoryClasses)}</td></tr>`).join('')||'<tr><td colspan="6" style="padding:16px">No recorded module attendance yet.</td></tr>';
       
       // Hero
       const firstName = (s.name || '').split(' ')[0];
@@ -694,7 +703,7 @@
         document.getElementById('att-present').textContent = '0';
         document.getElementById('att-absent').textContent = '0';
         document.getElementById('att-total').textContent = '0';
-        document.getElementById('att-status').innerHTML = '<span>No classes attended yet.</span>';
+        document.getElementById('att-status').innerHTML = '<span>No attendance sessions recorded yet.</span>';
       }
       
       // Next class
@@ -710,7 +719,7 @@
         
         document.getElementById('next-when').textContent = when;
         document.getElementById('next-time').textContent = next.time;
-        document.getElementById('next-batch').textContent = cls ? cls.batchName : '';
+        document.getElementById('next-batch').textContent = next.batchName || (cls ? cls.batchName : '');
       } else {
         document.getElementById('next-when').textContent = 'No upcoming class';
         document.getElementById('next-time').textContent = '—';
@@ -746,6 +755,10 @@
         }, 300);
       }
       
+      if ((data.classes||[]).length>1) {
+        document.getElementById('class-info').innerHTML=data.classes.map(c=>`<div class="info-row"><span class="info-row-label">${escape(c.course)}</span><span class="info-row-value">${escape(c.batchName)}<br>${escape(c.teacher)}<br>${escape(c.days)} · ${escape(c.time)}</span></div>`).join('');
+        document.getElementById('progress-wrap').style.display='none';
+      }
       // Recent attendance
       const recent = data.recentAttendance || [];
       if (recent.length > 0) {
@@ -762,10 +775,10 @@
               </div>
               <div class="recent-info">
                 <div class="recent-date">${formatted}</div>
-                <div class="recent-meta">${r.Time || ''} · ${r.Method || 'QR'}</div>
+                <div class="recent-meta">${escape(r.Module || '')} · ${escape(r.Time || '')} · ${escape(r.Method || 'QR')}</div>
               </div>
               <div class="recent-status ${isPresent ? 'recent-status-present' : 'recent-status-absent'}">
-                ${r.Status}
+                ${escape(r.Status)}
               </div>
             </div>
           `;
