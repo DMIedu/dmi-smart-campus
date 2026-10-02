@@ -62,6 +62,8 @@
     .slot-available { background: #f8fafc; color: #cbd5e1; border: 1px dashed #e2e8f0; }
     .slot-available:hover { background: #eff6ff; color: var(--dmi-primary); border-color: var(--dmi-primary); }
     .slot-booked { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+    .slot-booked.slot-self-booked { background:#ede9fe; color:#5b21b6; border-color:#a78bfa; }
+    .slot-origin { font-size:0.55rem; font-weight:700; }
     .slot-present { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
     .slot-absent { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
     .slot-blocked { background: #e5e7eb; color: #6b7280; cursor: not-allowed; }
@@ -195,7 +197,8 @@
 
     <div class="legend">
       <span class="legend-item"><span class="legend-swatch" style="background:#f8fafc;border:1px dashed #cbd5e1"></span>Available</span>
-      <span class="legend-item"><span class="legend-swatch" style="background:#dbeafe"></span>Booked</span>
+      <span class="legend-item"><span class="legend-swatch" style="background:#dbeafe"></span>Centre booking</span>
+      <span class="legend-item"><span class="legend-swatch" style="background:#ede9fe"></span>Student booking</span>
       <span class="legend-item"><span class="legend-swatch" style="background:#d1fae5"></span>Present ✓</span>
       <span class="legend-item"><span class="legend-swatch" style="background:#fee2e2"></span>Absent</span>
       <span class="legend-item"><span class="legend-swatch" style="background:#e5e7eb"></span>Blocked</span>
@@ -419,9 +422,11 @@
               const check = status === 'present' ? '<span class="slot-check">✓</span> ' : (status === 'absent' ? '<span class="slot-check">✗</span> ' : '');
               inner = `<span class="slot-name">${check}${escapeHtml(nm)}</span>`;
               if (s.subModule || s.course) inner += `<span class="slot-module">${escapeHtml(s.subModule || s.course)}</span>`;
+              inner += `<span class="slot-origin">${s.bookingSource==='Student'?'Student':'Centre'}</span>`;
+              title += ' · '+(s.bookingSource==='Student'?'Student self-booking':'Centre booking');
               title += ' · ' + nm + (status === 'present' ? ' (Present)' : status === 'absent' ? ' (Absent)' : ' (Booked)');
             }
-            html += `<td><div class="slot slot-${status}${inCart ? ' slot-cart' : ''}" onclick="onSlotClick('${escapeAttr(pc)}','${escapeAttr(ts)}')" title="${escapeAttr(title)}">${inner}</div></td>`;
+            html += `<td><div class="slot slot-${status}${s.bookingSource==='Student'?' slot-self-booked':''}${inCart ? ' slot-cart' : ''}" onclick="onSlotClick('${escapeAttr(pc)}','${escapeAttr(ts)}')" title="${escapeAttr(title)}">${inner}</div></td>`;
           });
           html += '</tr>';
         }
@@ -817,6 +822,7 @@
         ${s.subModule ? `<div class="sc-row"><span class="sc-label">Sub-Module</span><span class="sc-value">${escapeHtml(s.subModule)}</span></div>` : ''}
         <div class="sc-row"><span class="sc-label">Phone</span><span class="sc-value" style="font-family:var(--font-mono);font-size:0.8125rem">${escapeHtml(s.phone || '—')}</span></div>
         <div class="sc-row"><span class="sc-label">Booked At</span><span class="sc-value" style="font-size:0.8125rem">${escapeHtml(s.bookedAt || '—')}</span></div>
+        <div class="sc-row"><span class="sc-label">Booking source</span><span class="sc-value">${s.bookingSource==='Student'?'Student self-booking':'Centre booking'}</span></div>
         ${s.arrivedAt ? `<div class="sc-row"><span class="sc-label">Arrived At</span><span class="sc-value" style="font-size:0.8125rem;color:#059669">${escapeHtml(s.arrivedAt)}</span></div>` : ''}`;
 
       let footer = '<button class="btn btn-ghost" onclick="closeModal(\'booking-modal\')">Close</button>';
@@ -915,4 +921,3 @@
   </script>
 </body>
 </html>
-
