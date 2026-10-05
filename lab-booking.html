@@ -331,7 +331,7 @@
     function labAttendanceItems(){const out=[];if(currentSlots)Object.entries(currentSlots.slots).forEach(([pc,slots])=>Object.entries(slots).forEach(([time,s])=>{if(s.status==='Booked')out.push({...s,pc,time});}));return out;}
     function labSlotFinished(date,time,clock=new Date()){
       const p=String(time).split(/\s*[–—-]\s*/),parse=s=>{const m=s.match(/^(\d{1,2}):(\d{2})$/);return m&&+m[1]<24&&+m[2]<60?+m[1]*60+ +m[2]:null;};
-      if(p.length!==2)return false;const start=parse(p[0]);let end=parse(p[1]);if(start===null||end===null)return false;if(end<=start&&start<13*60&&end<12*60)end+=12*60;if(end<=start||end-start>12*60)return false;
+      if(p.length!==2)return false;let start=parse(p[0]),end=parse(p[1]);if(start===null||end===null)return false;if(start<8*60)start+=12*60;if(end<8*60)end+=12*60;if(end<=start&&start<13*60&&end<12*60)end+=12*60;if(end<=start||end-start>12*60)return false;
       const parts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Colombo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(clock).map(p=>[p.type,p.value]));
       const today=parts.year+'-'+parts.month+'-'+parts.day;return date<today||date===today&&Number(parts.hour)*60+Number(parts.minute)>=end;
     }
