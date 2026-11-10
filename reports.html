@@ -352,6 +352,7 @@
         <div class="report-tab-name">Student Summary</div>
         <div class="report-tab-desc">Individual attendance record</div>
       </div>
+      <div class="report-tab" data-report="joining" id="joining-report-tab" hidden><div class="report-tab-icon">📝</div><div class="report-tab-name">Course-wise Joining Students</div><div class="report-tab-desc">Joining dates and student contact details</div></div>
       <div class="report-tab" data-report="absence" id="absence-report-tab" hidden><div class="report-tab-icon">📆</div><div class="report-tab-name">Students Not Attending</div><div class="report-tab-desc">Joining dates, absence days, branch and course</div></div>
       <div class="report-tab" data-report="classbook">
         <div class="report-tab-icon">📖</div>
@@ -382,6 +383,7 @@
     if (!user) throw 'redirect';
     
     document.getElementById('header-name').textContent = user.name || 'User';
+    document.getElementById('joining-report-tab').hidden = user.role !== 'admin';
     document.getElementById('absence-report-tab').hidden = user.role !== 'admin';
     document.getElementById('admin-report-shortcuts').hidden = user.role !== 'admin';
     
@@ -423,7 +425,9 @@
       
       let html = '';
       
-      if (currentReport === 'absence') {
+      if (currentReport === 'joining') {
+        html = renderJoiningFilters();
+      } else if (currentReport === 'absence') {
         html = renderAbsenceFilters(branches);
       } else if (currentReport === 'daily') {
         html = `
@@ -489,6 +493,7 @@
       
       bar.innerHTML = html;
       if (currentReport === 'absence') loadAbsenceCourses();
+      if (currentReport === 'joining') loadJoiningCourses();
       
       // Load students for student report
       if (currentReport === 'student') {
@@ -539,7 +544,9 @@
       let result;
       
       try {
-        if (currentReport === 'absence') {
+        if (currentReport === 'joining') {
+          result = await generateJoiningReport();
+        } else if (currentReport === 'absence') {
           result = await generateAbsenceReport();
         } else if (currentReport === 'daily') {
           const date = document.getElementById('f-date').value;
@@ -871,6 +878,55 @@
       );
     }
     
+    let joiningGeneration=0,lastJoiningReport=null;
+    function renderJoiningFilters(){
+      joiningGeneration++;lastJoiningReport=null;
+      const today=absenceToday();
+      return `<div class="filter-field"><label class="label" for="j-from">Joining date from</label><input type="date" class="input" id="j-from" value="${today.slice(0,4)}-01-01" required></div>
+        <div class="filter-field"><label class="label" for="j-to">Joining date to</label><input type="date" class="input" id="j-to" value="${today}" required></div>
+        <div class="filter-field"><label class="label" for="j-course">Course</label><select class="select" id="j-course" disabled><option value="">Loading courses...</option></select></div>
+        <div class="filter-field"><label class="label" for="j-branch">Branch</label><select class="select" id="j-branch"><option value="">All branches</option>${branches.map(b=>`<option value="${escape(b.BranchID)}">${escape(b.BranchName)}</option>`).join('')}</select></div>
+        <p style="flex-basis:100%;font-size:.8125rem;color:var(--text-muted)">Includes both dates and all student statuses. Uses the recorded joining date and current course.</p>`;
+    }
+    async function loadJoiningCourses(){
+      const select=document.getElementById('j-course');
+      try{
+        const r=await apiCall('reportAbsenceCourses');
+        if(select!==document.getElementById('j-course'))return;
+        if(!r?.success)throw Error(r?.error||'Could not load courses');
+        select.replaceChildren(new Option('All courses',''));
+        r.courses.forEach(c=>select.add(new Option(c,c)));select.disabled=false;
+      }catch(e){if(select===document.getElementById('j-course')){select.replaceChildren(new Option('All courses',''));select.disabled=false;showToast(e.message+'; refresh to select a course.','error');}}
+    }
+    async function generateJoiningReport(){
+      if(user.role!=='admin')throw Error('Admin access required');
+      const generation=++joiningGeneration,target=document.getElementById('j-from');lastJoiningReport=null;
+      const from=target.value,to=document.getElementById('j-to').value,course=document.getElementById('j-course');
+      if(!from||!to||from>to)throw Error('Select a valid joining date range');
+      if(course.disabled)throw Error('Please wait for courses to load');
+      const branch=document.getElementById('j-branch');
+      const courseLabel=course.selectedOptions[0].textContent,branchLabel=branch.selectedOptions[0].textContent;
+      const result=await apiCall('reportJoiningStudents',{joinedFrom:from,joinedTo:to,Course:course.value,BranchID:branch.value});
+      if(generation!==joiningGeneration||currentReport!=='joining'||target!==document.getElementById('j-from'))return result;
+      if(!result?.success)throw Error(result?.error||'Could not generate joining report');
+      lastJoiningReport=result;
+      let table=result.records.length?`<div class="report-table-wrap"><table class="report-table"><thead><tr><th>#</th><th>Joining date</th><th>Registration number</th><th>Student name</th><th>Phone number</th><th>Email address</th><th>Course</th><th>Branch</th><th>Status</th></tr></thead><tbody>${result.records.map((s,i)=>`<tr><td>${i+1}</td>${['AdmissionDate','RegistrationNumber','StudentName','PhoneNumber','Email','Course','BranchName','Status'].map(k=>`<td>${escape(s[k]||'—')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:emptyTable('No students joined in this date range for the selected course and branch.');
+      table+=`<p style="padding:1rem 1.5rem;color:var(--text-muted);font-size:.8125rem">${escape(result.definition)}${result.omittedInvalidJoiningDates?` ${result.omittedInvalidJoiningDates} matching records have no valid joining date and are excluded.`:''}</p>`;
+      document.getElementById('report-output').innerHTML=reportShell('Course-wise Joining Students',`${from} to ${to} · ${courseLabel} · ${branchLabel}`,[{label:'Students joined',value:result.totalStudents}],table).replace('onclick="exportReportCSV()"','onclick="exportJoiningCSV()"');
+      return result;
+    }
+    function joiningCSV(result){
+      const fields=['AdmissionDate','RegistrationNumber','StudentName','PhoneNumber','Email','Course','BranchName','Status'];
+      const quote=value=>{const s=String(value??'');return '"'+(/^[\s]*[=+@\-\t\r]/.test(s)?"'":'')+s.replace(/"/g,'""')+'"';};
+      return '\ufeff'+[['Joining date','Registration number','Student name','Phone number','Email address','Course','Branch','Status'],...result.records.map(s=>fields.map(k=>s[k]??''))].map(row=>row.map(quote).join(',')).join('\r\n');
+    }
+    function exportJoiningCSV(){
+      if(!lastJoiningReport?.success||currentReport!=='joining')return;
+      const url=URL.createObjectURL(new Blob([joiningCSV(lastJoiningReport)],{type:'text/csv;charset=utf-8;'}));
+      const a=document.createElement('a');a.href=url;a.download=`DMI_Joining_Students_${lastJoiningReport.joinedFrom}_${lastJoiningReport.joinedTo}.csv`;a.click();URL.revokeObjectURL(url);
+      showToast('Joining report downloaded as CSV','success');
+    }
+
     // ===== HELPERS =====
     function pctPill(pct) {
       const cls = pct >= 75 ? 'pct-good' : pct >= 50 ? 'pct-warn' : 'pct-bad';
