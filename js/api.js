@@ -27,7 +27,7 @@ async function apiCall(action, params = {}) {
       return null;
     }
     
-    return data;
+    return courseViewData(data);
   } catch (err) {
     console.error('API error:', err);
     return { success: false, error: 'Network error: ' + err.message };
@@ -110,4 +110,23 @@ function formatDate(dateStr) {
 function formatTime(timeStr) {
   if (!timeStr) return '-';
   return timeStr.toString().substring(0, 5);
+}
+
+
+// Shared course identity rules. Preserve C, C++ and C# as different courses.
+const DMI_COURSE_ALIASES={autocat:'autocad',phython:'python',webdovelopment:'webdevelopment',hardware:'computerhardware',hardwara:'computerhardware',grapic:'graphicdesign',starter:'starters'};
+const DMI_COURSE_LABELS={};
+['AutoCAD','DITEC','DPCA','DOA','DMO','DWD','DVPM','DGD','MS Office','Web Development','Graphic Design','Computer Hardware','Programming','JAVA','PYTHON','C','C++','C#','JCCS','JCGA','JCCP','JCDG','JDCS','JDGA','JCDC','JCDS','JJDGA','STARTERS','MOVERS','FLYERS','KET','IELTS','PTE','A1','Foundation','Spoken English','Business English','Diploma in English Part 1','Diploma in English Part 2','Beauty','Tailoring','Cake Icing','Aari Work','Other','IT','English','School IT','Level 1','Level 3','QB','Quikbook','Canva','Software Engineering','PC Application','Video Production','Photoshop','Computer Science','Computer Networks','Webdesiging','Typing','Database Systems','IT Management','Cloud Computing','Cybersecurity','SINGALA'].forEach(name=>DMI_COURSE_LABELS[name.normalize('NFKC').toLowerCase().replace(/[\s._-]+/g,'')]=name);
+function courseKey(name){const key=String(name||'').normalize('NFKC').trim().toLowerCase().replace(/[\s._-]+/g,'');return DMI_COURSE_ALIASES[key]||key;}
+function courseDisplayName(name){const clean=String(name||'').normalize('NFKC').trim().replace(/\s+/g,' ');return DMI_COURSE_LABELS[courseKey(clean)]||clean;}
+function isCourseChoice(name){const key=courseKey(name);return !!key&&/[a-z\u0080-\uffff]/i.test(key)&&!['female','adhn','autocadghghgh','auto'].includes(key);}
+function courseViewData(value,context=''){
+  if(Array.isArray(value)){
+    if(context==='courses'){
+      const seen=new Set();return value.map(item=>typeof item==='string'?courseDisplayName(item):Object.assign({},item,{name:courseDisplayName(item.name)})).filter(item=>{const name=typeof item==='string'?item:item.name,key=(typeof item==='string'?'':(item.department||item.category||'')+':')+courseKey(name);if(!isCourseChoice(name)||seen.has(key))return false;seen.add(key);return true;});
+    }
+    return value.map(item=>courseViewData(item));
+  }
+  if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([key,v])=>[key,['Course','CourseName','courseName'].includes(key)||key==='course'&&typeof v==='string'?courseDisplayName(v):courseViewData(v,key)]));
+  return value;
 }

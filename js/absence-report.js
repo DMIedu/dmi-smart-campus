@@ -25,7 +25,9 @@ function setOlderJoiningDates() {
 }
 async function loadAbsenceCourses() {
   const target=document.getElementById('a-course');
-  const result=await apiCall('reportAbsenceCourses');
+  const branchId=document.getElementById('a-branch').value;
+  const result=await apiCall('reportAbsenceCourses',{BranchID:branchId});
+  if(branchId!==document.getElementById('a-branch')?.value)return;
   if(target!==document.getElementById('a-course'))return;
   target.replaceChildren(new Option('All courses',''));
   if(!result?.success){showToast(result?.error || 'Could not load courses. You can still report on all courses.','error');return;}
