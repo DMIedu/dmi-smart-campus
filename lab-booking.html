@@ -270,13 +270,7 @@
           </button>
           <div style="font-size:0.6875rem;color:#94a3b8;margin-top:4px;">Change the date, click the slots you want, then confirm all together.</div>
         </div>
-        <datalist id="courses-list">
-          <option>DITEC</option><option>DPCA</option><option>DOA</option><option>DMO</option><option>DWD</option>
-          <option>Diploma in English Part 1</option><option>Diploma in English Part 2</option>
-          <option>Business English</option><option>Spoken English</option><option>IELTS</option>
-          <option>A1</option><option>Foundation</option><option>Beauty</option><option>Tailoring</option>
-          <option>Cake Icing</option><option>Aari Work</option>
-        </datalist>
+        <datalist id="courses-list"></datalist>
         <div id="confirm-alerts"></div>
       </div>
       <div class="modal-footer">
@@ -361,6 +355,8 @@
     }
     // Refresh automatic attendance only when no work is in progress.
     setInterval(()=>{if(!document.hidden&&!labBulkSaving&&!bookingSaveBusy&&!labAttendanceSelected.size&&!cartStudent&&!document.querySelector('.modal-overlay.active')&&currentSlots)loadSlots();},300000);
+
+    let bookingCourseBranch='';async function loadBookingCourseChoices(){const branch=document.getElementById('f-branch').value;if(!branch||branch===bookingCourseBranch)return;bookingCourseBranch=branch;try{const r=await apiCall('listStudentCourseChoices',{BranchID:branch});if(document.getElementById('f-branch').value!==branch)return;const list=document.getElementById('courses-list');if(r?.success&&list)list.replaceChildren(...r.courses.map(c=>{const option=document.createElement('option');option.value=c;return option;}));else bookingCourseBranch='';}catch{bookingCourseBranch='';}}
     async function init() {
       document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
       const br = await apiCall('listBranches');
@@ -374,6 +370,7 @@
 
     async function loadSlots() {
       if(labBulkSaving)return;labAttendanceSelected.clear();labAttendanceQuery='';
+      loadBookingCourseChoices();
       const request = ++slotsRequest; ++lookupRequest;
       const date = document.getElementById('f-date').value;
       const branchId = document.getElementById('f-branch').value;
@@ -939,3 +936,4 @@
   </script>
 </body>
 </html>
+
