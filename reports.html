@@ -293,7 +293,7 @@
     .logout-btn:hover { background: var(--bg); }
     
     @media print {
-      .dmi-header, .back-link, .report-tabs, .filters-bar, .report-actions { display: none !important; }
+      .dmi-header, .back-link, .report-tabs, .filters-bar, .report-actions, .follow-actions, .follow-selection { display: none !important; }
       .container { padding: 0; }
       .report-output { border: none; }
       .report-table-wrap { max-height: none; overflow: visible; }
@@ -352,6 +352,8 @@
         <div class="report-tab-name">Student Summary</div>
         <div class="report-tab-desc">Individual attendance record</div>
       </div>
+      <div class="report-tab" data-report="labfollowup" id="lab-followup-tab" hidden><div class="report-tab-icon">💻</div><div class="report-tab-name">Lab Booking Follow-up</div><div class="report-tab-desc">Computer-course students without recent bookings</div></div>
+      <div class="report-tab" data-report="statusrequests" id="status-requests-tab" hidden><div class="report-tab-icon">✅</div><div class="report-tab-name">Student Status Requests</div><div class="report-tab-desc">Reception submits; admin approves</div></div>
       <div class="report-tab" data-report="joining" id="joining-report-tab" hidden><div class="report-tab-icon">📝</div><div class="report-tab-name">Course-wise Joining Students</div><div class="report-tab-desc">Joining dates and student contact details</div></div>
       <div class="report-tab" data-report="absence" id="absence-report-tab" hidden><div class="report-tab-icon">📆</div><div class="report-tab-name">Students Not Attending</div><div class="report-tab-desc">Joining dates, absence days, branch and course</div></div>
       <div class="report-tab" data-report="classbook">
@@ -383,6 +385,8 @@
     if (!user) throw 'redirect';
     
     document.getElementById('header-name').textContent = user.name || 'User';
+    document.getElementById('lab-followup-tab').hidden = !['admin','reception'].includes(user.role);
+    document.getElementById('status-requests-tab').hidden = !['admin','reception'].includes(user.role);
     document.getElementById('joining-report-tab').hidden = user.role !== 'admin';
     document.getElementById('absence-report-tab').hidden = user.role !== 'admin';
     document.getElementById('admin-report-shortcuts').hidden = user.role !== 'admin';
@@ -425,7 +429,11 @@
       
       let html = '';
       
-      if (currentReport === 'joining') {
+      if(currentReport==='labfollowup'){
+        html=renderFollowFilters();
+      }else if(currentReport==='statusrequests'){
+        html=renderStatusRequestFilters();
+      }else if (currentReport === 'joining') {
         html = renderJoiningFilters();
       } else if (currentReport === 'absence') {
         html = renderAbsenceFilters(branches);
@@ -493,7 +501,9 @@
       
       bar.innerHTML = html;
       if (currentReport === 'absence') loadAbsenceCourses();
-      if (currentReport === 'joining') loadJoiningCourses();
+      if (currentReport === 'joining') {loadJoiningCourses();document.getElementById('j-branch').addEventListener('change',loadJoiningCourses);}
+      if(currentReport==='absence')document.getElementById('a-branch').addEventListener('change',loadAbsenceCourses);
+      if(currentReport==='labfollowup')followLoadCourses();
       
       // Load students for student report
       if (currentReport === 'student') {
@@ -544,7 +554,11 @@
       let result;
       
       try {
-        if (currentReport === 'joining') {
+        if(currentReport==='labfollowup'){
+          result=await generateLabFollowup();
+        }else if(currentReport==='statusrequests'){
+          result=await generateStatusRequests();
+        }else if (currentReport === 'joining') {
           result = await generateJoiningReport();
         } else if (currentReport === 'absence') {
           result = await generateAbsenceReport();
@@ -891,7 +905,8 @@
     async function loadJoiningCourses(){
       const select=document.getElementById('j-course');
       try{
-        const r=await apiCall('reportAbsenceCourses');
+        const branchId=document.getElementById('j-branch').value;const r=await apiCall('reportAbsenceCourses',{BranchID:branchId});
+        if(branchId!==document.getElementById('j-branch')?.value)return;
         if(select!==document.getElementById('j-course'))return;
         if(!r?.success)throw Error(r?.error||'Could not load courses');
         select.replaceChildren(new Option('All courses',''));
@@ -926,6 +941,77 @@
       const a=document.createElement('a');a.href=url;a.download=`DMI_Joining_Students_${lastJoiningReport.joinedFrom}_${lastJoiningReport.joinedTo}.csv`;a.click();URL.revokeObjectURL(url);
       showToast('Joining report downloaded as CSV','success');
     }
+
+    let followGeneration=0,followResult=null,followSelected=new Set(),followBusy=false,followDraft={Status:'Completed',Reason:''},followSubmission=null;
+    let requestGeneration=0,statusRows=[],requestSelected=new Set(),requestBusy=false,requestReviewDraft='';
+    function followBranchOptions(){return branches.filter(b=>user.role==='admin'||String(b.BranchID)===String(user.branchId)).map(b=>`<option value="${escape(b.BranchID)}">${escape(b.BranchName)}</option>`).join('');}
+    function renderFollowFilters(){
+      followGeneration++;followResult=null;followSelected.clear();followSubmission=null;
+      return `<div class="filter-field"><label class="label" for="lf-month">Joining month (optional)</label><input class="input" type="month" id="lf-month" onchange="followSetMonth()"></div>
+      <div class="filter-field"><label class="label" for="lf-from">Joining date from</label><input class="input" type="date" id="lf-from" onchange="document.getElementById('lf-month').value=''"></div>
+      <div class="filter-field"><label class="label" for="lf-to">Joining date to</label><input class="input" type="date" id="lf-to" onchange="document.getElementById('lf-month').value=''"></div>
+      <div class="filter-field"><label class="label" for="lf-days">No lab booking for</label><select class="select" id="lf-days"><option value="2">More than 2 days</option><option value="3">More than 3 days</option><option value="5" selected>More than 5 days</option><option value="7">More than 1 week</option><option value="14">More than 2 weeks</option><option value="30">More than 30 days</option></select></div>
+      <div class="filter-field"><label class="label" for="lf-branch">Branch</label><select class="select" id="lf-branch" onchange="followLoadCourses()" ${user.role!=='admin'?'disabled':''}>${user.role==='admin'?'<option value="">All branches</option>':''}${followBranchOptions()}</select></div>
+      <div class="filter-field"><label class="label" for="lf-course">Computer course</label><select class="select" id="lf-course" disabled><option value="">Loading courses...</option></select></div>
+      <p style="flex-basis:100%;font-size:.8125rem;color:var(--text-muted)">Active Computer &amp; IT students only. Counts from the last scheduled lab-session date, or joining date if never booked. Students with an upcoming booking are excluded.</p>`;
+    }
+    function followSetMonth(){const value=document.getElementById('lf-month').value;if(!value)return;const [y,m]=value.split('-').map(Number);document.getElementById('lf-from').value=value+'-01';document.getElementById('lf-to').value=new Date(Date.UTC(y,m,0)).toISOString().slice(0,10);}
+    async function followLoadCourses(){
+      const target=document.getElementById('lf-course'),branch=document.getElementById('lf-branch').value,old=target.value;target.disabled=true;
+      try{const r=await apiCall('reportLabBookingCourses',{BranchID:branch});if(target!==document.getElementById('lf-course')||branch!==document.getElementById('lf-branch').value)return;if(!r?.success)throw Error(r?.error||'Course loading failed');target.replaceChildren(new Option('All computer courses',''));r.courses.forEach(c=>target.add(new Option(c,c)));target.value=r.courses.includes(old)?old:'';target.disabled=false;}
+      catch(e){if(target===document.getElementById('lf-course')){target.replaceChildren(new Option('Refresh to load courses',''));showToast(e.message,'error');}}
+    }
+    async function generateLabFollowup(){
+      const generation=++followGeneration,target=document.getElementById('lf-from'),select=document.getElementById('lf-course');followSelected.clear();followSubmission=null;
+      if(select.disabled)throw Error('Please wait for computer courses to load');const from=target.value,to=document.getElementById('lf-to').value;if(from&&to&&from>to)throw Error('Joining start date must be before end date');
+      const r=await apiCall('reportLabBookingFollowup',{joinedFrom:from,joinedTo:to,days:document.getElementById('lf-days').value,BranchID:document.getElementById('lf-branch').value,Course:select.value});
+      if(generation!==followGeneration||currentReport!=='labfollowup'||target!==document.getElementById('lf-from'))return r;if(!r?.success)throw Error(r?.error||'Could not generate lab follow-up');followResult=r;renderLabFollowup();return r;
+    }
+    function followToggle(id,checked){if(followBusy)return;if(checked)followSelected.add(id);else followSelected.delete(id);renderLabFollowup();}
+    function followSelectAll(){if(followBusy)return;followResult.records.filter(s=>!s.PendingStatusRequest).forEach(s=>followSelected.add(s.StudentID));renderLabFollowup();}
+    function followStatusForm(){
+      return `<section class="follow-actions" style="padding:1rem 1.5rem;border-top:1px solid var(--border)"><h4>Student status follow-up</h4><p style="margin:.5rem 0;font-size:.8125rem">${user.role==='admin'?'Admin changes are applied immediately and recorded in the approval history.':'Reception submits requests. Students stay active until admin approves.'} Existing bookings and attendance history are preserved.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:.75rem"><select class="select" aria-label="Requested student status" onchange="followDraft.Status=this.value" ${followBusy?'disabled':''}>${[['Completed','Completed course'],['Discontinued','Discontinued'],['Inactive','Other reason (Inactive)']].map(([v,t])=>`<option value="${v}" ${followDraft.Status===v?'selected':''}>${t}</option>`).join('')}</select><textarea class="input" aria-label="Reason for status change" placeholder="Enter a reason" maxlength="1000" oninput="followDraft.Reason=this.value" ${followBusy?'disabled':''}>${escape(followDraft.Reason)}</textarea>
+      <button class="btn btn-primary" onclick="submitFollowStatus()" ${!followSelected.size||followBusy?'disabled':''}>${followBusy?'Saving...':(user.role==='admin'?'Apply status change':'Submit for admin approval')+' ('+followSelected.size+')'}</button>
+      <a class="btn btn-ghost" href="reports.html?report=statusrequests">View status requests</a></div></section>`;
+    }
+    function renderLabFollowup(){
+      if(!followResult||currentReport!=='labfollowup')return;const r=followResult;
+      let table=r.records.length?`<div class="follow-actions" style="padding:.75rem 1.5rem"><button class="btn btn-ghost" onclick="followSelectAll()" ${followBusy?'disabled':''}>Select all without pending requests</button> <button class="btn btn-ghost" onclick="followSelected.clear();renderLabFollowup()" ${followBusy?'disabled':''}>Clear selection</button></div><div class="report-table-wrap"><table class="report-table"><thead><tr><th class="follow-selection">Select</th><th>Registration number</th><th>Student name</th><th>Phone number</th><th>Email address</th><th>Course</th><th>Branch</th><th>Joining date</th><th>Last lab session booked</th><th>Days without booking</th><th>Status request</th></tr></thead><tbody>${r.records.map(s=>`<tr><td class="follow-selection"><input type="checkbox" aria-label="Select ${escape(s.StudentName)} (${escape(s.RegistrationNumber)})" data-id="${escape(s.StudentID)}" onchange="followToggle(this.dataset.id,this.checked)" ${followSelected.has(s.StudentID)?'checked':''} ${s.PendingStatusRequest||followBusy?'disabled':''}></td>${['RegistrationNumber','StudentName','PhoneNumber','Email','Course','BranchName','AdmissionDate'].map(k=>`<td>${escape(s[k]||'—')}</td>`).join('')}<td>${escape(s.LastLabBooking||'Never booked')}</td><td>${Number(s.DaysWithoutBooking)}</td><td>${s.PendingStatusRequest?'Pending admin review':'—'}</td></tr>`).join('')}</tbody></table></div>`:emptyTable('No active computer-course students match this booking gap.');
+      table+=`<p style="padding:1rem 1.5rem;color:var(--text-muted);font-size:.8125rem">${escape(r.definition)} ${r.omittedInvalidJoiningDates?Number(r.omittedInvalidJoiningDates)+' records without valid joining dates are excluded. ':''}${r.omittedUncertainBookings?Number(r.omittedUncertainBookings)+' students with invalid booking records require review and are excluded.':''}</p>`;
+      if(r.records.length)table+=followStatusForm();
+      document.getElementById('report-output').innerHTML=reportShell('Lab Booking Follow-up','As of '+r.asOf,[{label:'Students to contact',value:r.totalStudents},{label:'Never booked',value:r.neverBooked}],table).replace('onclick="exportReportCSV()"','onclick="exportFollowupCSV()"');
+    }
+    async function submitFollowStatus(){
+      if(followBusy||!followSelected.size)return;const ids=Array.from(followSelected).sort(),reason=followDraft.Reason.trim();if(reason.length<3){showToast('Please enter a reason for this status change.','warning');return;}
+      const signature=JSON.stringify([ids,followDraft.Status,reason]);if(followSubmission?.signature!==signature)followSubmission={signature,id:crypto.randomUUID()};
+      const params={StudentIDs:ids,Status:followDraft.Status,Reason:reason,operationId:followSubmission.id},generation=followGeneration;followBusy=true;renderLabFollowup();
+      try{const r=await apiCall(user.role==='admin'?'studentStatusDirect':'studentStatusSubmit',params);if(!r?.success)throw Error(r?.error||'Could not save. Retry the same selection.');if(generation===followGeneration&&currentReport==='labfollowup'){
+        if(user.role==='admin')followResult.records=followResult.records.filter(s=>!ids.includes(s.StudentID));else followResult.records.forEach(s=>{if(ids.includes(s.StudentID))s.PendingStatusRequest=true;});
+        followResult.totalStudents=followResult.records.length;followResult.neverBooked=followResult.records.filter(s=>!s.LastLabBooking).length;followSelected.clear();followSubmission=null;followDraft.Reason='';
+      }showToast(user.role==='admin'?'Student status changes approved and saved.':'Requests submitted. Students stay active until admin approves.','success');}
+      catch(e){showToast(e.message,'error');}finally{followBusy=false;renderLabFollowup();}
+    }
+    function exportFollowupCSV(){if(!followResult||currentReport!=='labfollowup')return;const fields=['RegistrationNumber','StudentName','PhoneNumber','Email','Course','BranchName','AdmissionDate','LastLabBooking','DaysWithoutBooking','BookingHistory'];const headers=['Registration number','Student name','Phone number','Email address','Course','Branch','Joining date','Last scheduled lab booking','Days without booking','Booking history'];downloadFollowCSV(headers,followResult.records.map(s=>fields.map(k=>s[k]??'')),'DMI_Lab_Booking_Followup_'+followResult.asOf);}
+    function downloadFollowCSV(headers,rows,name){const quote=v=>{const s=String(v??'');return '"'+(/^\s*[=+@\-\t\r]/.test(s)?"'":'')+s.replace(/"/g,'""')+'"';};const csv='\ufeff'+[headers,...rows].map(row=>row.map(quote).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})),a=document.createElement('a');a.href=url;a.download=name+'.csv';a.click();URL.revokeObjectURL(url);}
+    function renderStatusRequestFilters(){requestGeneration++;requestSelected.clear();requestReviewDraft='';return `<div class="filter-field"><label class="label" for="ss-branch">Branch</label><select class="select" id="ss-branch" ${user.role!=='admin'?'disabled':''}>${user.role==='admin'?'<option value="">All branches</option>':''}${followBranchOptions()}</select></div><div class="filter-field"><label class="label" for="ss-state">Request status</label><select class="select" id="ss-state"><option value="Pending">Pending admin review</option><option value="Approved">Approved</option><option value="Rejected">Rejected</option><option value="All">All requests</option></select></div><p style="flex-basis:100%;font-size:.8125rem;color:var(--text-muted)">${user.role==='admin'?'Review reception requests and approve or reject each change.':'Your branch requests are shown here. Only admin can approve or reject them.'}</p>`;}
+    async function generateStatusRequests(){
+      const generation=++requestGeneration,target=document.getElementById('ss-branch'),state=document.getElementById('ss-state').value;requestSelected.clear();
+      const r=await apiCall('studentStatusRequests',{BranchID:target.value,state});if(generation!==requestGeneration||currentReport!=='statusrequests'||target!==document.getElementById('ss-branch'))return r;if(!r?.success)throw Error(r?.error||'Could not load requests');statusRows=r.records;renderStatusRequests();return r;
+    }
+    function toggleStatusRequest(id,on){if(requestBusy)return;if(on)requestSelected.add(id);else requestSelected.delete(id);document.getElementById('ss-count').textContent=requestSelected.size;document.getElementById('ss-approve').disabled=!requestSelected.size;document.getElementById('ss-reject').disabled=!requestSelected.size||statusRows.some(r=>requestSelected.has(r.RequestID)&&r.State==='Applying');}
+    function renderStatusRequests(){
+      if(currentReport!=='statusrequests')return;let table=statusRows.length?`<div class="report-table-wrap"><table class="report-table"><thead><tr>${user.role==='admin'?'<th class="follow-selection">Select</th>':''}<th>Registration number</th><th>Student name</th><th>Course</th><th>Branch</th><th>Requested status</th><th>Reason</th><th>Submitted by</th><th>Submitted at</th><th>State</th><th>Reviewed by</th><th>Review note</th></tr></thead><tbody>${statusRows.map(r=>`<tr>${user.role==='admin'?`<td class="follow-selection"><input type="checkbox" aria-label="Select request for ${escape(r.StudentName)}" data-id="${escape(r.RequestID)}" onchange="toggleStatusRequest(this.dataset.id,this.checked)" ${requestSelected.has(r.RequestID)?'checked':''} ${!['Pending','Applying'].includes(r.State)||requestBusy?'disabled':''}></td>`:''}${['RegistrationNumber','StudentName','Course','BranchID','RequestedStatus','Reason','SubmittedName','SubmittedAt','State','ReviewedBy','ReviewNote'].map(k=>`<td style="${['Reason','ReviewNote'].includes(k)?'white-space:normal;min-width:180px':''}">${escape(r[k]||'—')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:emptyTable('No requests match these filters.');
+      if(user.role==='admin'&&statusRows.some(r=>['Pending','Applying'].includes(r.State)))table+=`<section class="follow-actions" style="padding:1rem 1.5rem"><h4>Admin review (<span id="ss-count">${requestSelected.size}</span> selected)</h4><textarea class="input" id="ss-note" aria-label="Admin review note" maxlength="1000" oninput="requestReviewDraft=this.value" placeholder="Review note (required when rejecting)" ${requestBusy?'disabled':''}>${escape(requestReviewDraft)}</textarea><button class="btn btn-primary" id="ss-approve" onclick="reviewStatusRequests('Approve')" ${!requestSelected.size||requestBusy?'disabled':''}>Approve selected</button> <button class="btn btn-ghost" id="ss-reject" onclick="reviewStatusRequests('Reject')" ${!requestSelected.size||requestBusy||statusRows.some(r=>requestSelected.has(r.RequestID)&&r.State==='Applying')?'disabled':''}>Reject selected</button><p style="font-size:.8125rem;margin-top:8px">Approval changes the selected students' enrolment status. Booking and attendance history stay unchanged. An interrupted approval can be resumed.</p></section>`;
+      document.getElementById('report-output').innerHTML=reportShell('Student Status Requests','Admin approval history',[{label:'Requests',value:statusRows.length}],table).replace('onclick="exportReportCSV()"','onclick="exportStatusRequestsCSV()"');
+    }
+    async function reviewStatusRequests(decision){
+      if(user.role!=='admin'||requestBusy||!requestSelected.size)return;const note=document.getElementById('ss-note').value.trim();if(decision==='Reject'&&note.length<3){showToast('Enter a reason for rejecting these requests.','warning');return;}
+      const ids=Array.from(requestSelected),generation=requestGeneration;requestReviewDraft=note;requestBusy=true;renderStatusRequests();
+      try{const r=await apiCall('studentStatusReview',{RequestIDs:ids,decision,ReviewNote:note});if(!r?.success)throw Error(r?.error||'Review did not finish. Retry the same requests.');showToast(decision==='Approve'?'Approved and saved.':'Requests rejected; student statuses unchanged.','success');requestReviewDraft='';if(generation===requestGeneration&&currentReport==='statusrequests')await generateStatusRequests();}
+      catch(e){showToast(e.message,'error');}finally{requestBusy=false;if(currentReport==='statusrequests')renderStatusRequests();}
+    }
+    function exportStatusRequestsCSV(){if(currentReport!=='statusrequests')return;const keys=['RegistrationNumber','StudentName','Course','BranchID','CurrentStatus','RequestedStatus','Reason','SubmittedName','SubmittedRole','SubmittedAt','State','ReviewedBy','ReviewedAt','ReviewNote','AppliedAt'];downloadFollowCSV(keys,statusRows.map(r=>keys.map(k=>r[k]||'')),'DMI_Student_Status_Requests_'+absenceToday());}
 
     // ===== HELPERS =====
     function pctPill(pct) {
@@ -977,8 +1063,11 @@
     // ===== INIT =====
     (async function init() {
       await loadRefData();
+      const requested=new URLSearchParams(window.location.search).get('report');
+      if(['labfollowup','statusrequests'].includes(requested)&&['admin','reception'].includes(user.role)){currentReport=requested;document.querySelectorAll('.report-tab').forEach(t=>t.classList.toggle('active',t.dataset.report===requested));}
       renderFilters();
     })();
   </script>
 </body>
 </html>
+
