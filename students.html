@@ -449,7 +449,7 @@
     
     function buildCourseFilter() {
       const select = document.getElementById('f-course');
-      const courses = [...new Set(allStudents.map(s => s.Course).filter(Boolean))].sort();
+      const courses = [...new Map(allStudents.map(s=>s.Course).filter(isCourseChoice).map(c=>[courseKey(c),courseDisplayName(c)])).values()].sort();
       let opts = '<option value="">All courses</option>';
       courses.forEach(c => opts += `<option value="${escape(c)}">${escape(c)}</option>`);
       select.innerHTML = opts;
@@ -478,7 +478,7 @@
       
       filteredStudents = allStudents.filter(s => {
         if (branch && String(s.BranchID) !== branch) return false;
-        if (course && s.Course !== course) return false;
+        if (course && courseKey(s.Course) !== courseKey(course)) return false;
         if (fee && (s.FeeStatus || 'Pending') !== fee) return false;
         if (search) {
           const haystack = [
@@ -683,14 +683,17 @@
           </div>
           <div class="drawer-field">
             <label class="label">Status</label>
-            <select class="select" id="ed-status">
+            <select class="select" id="ed-status" disabled aria-describedby="status-workflow-hint">
               <option value="Active" ${(s.Status || 'Active') === 'Active' ? 'selected' : ''}>Active</option>
               <option value="Inactive" ${s.Status === 'Inactive' ? 'selected' : ''}>Inactive</option>
+              <option value="Completed" ${s.Status==='Completed'?'selected':''}>Completed</option>
+              <option value="Discontinued" ${s.Status==='Discontinued'?'selected':''}>Discontinued</option>
               <option value="Graduated" ${s.Status === 'Graduated' ? 'selected' : ''}>Graduated</option>
-            </select>
+            </select><p id="status-workflow-hint" style="font-size:.8125rem;margin-top:8px"><a href="reports.html?report=labfollowup">Use Lab Booking Follow-up</a> to submit or apply a status change. <a href="reports.html?report=statusrequests">View approval requests</a>.</p>
           </div>
         </div>
         
+        ${studentStatusForm(s)}
         <div class="drawer-section">
           <div class="drawer-section-title">System Info</div>
           <div class="drawer-stat-row">
@@ -713,11 +716,29 @@
     }
     
     function closeDrawer() {
+      if(drawerStatusBusy)return;
       document.getElementById('drawer-overlay').classList.remove('active');
       document.getElementById('drawer').classList.remove('active');
-      editingStudent = null;
+      editingStudent = null;drawerStatusOperation=null;
     }
     
+    let drawerStatusBusy=false,drawerStatusOperation=null;
+    function studentStatusForm(s){
+      if(!['admin','reception'].includes(user.role)||String(s.Status||'Active').toLowerCase()!=='active')return '';
+      return `<div class="drawer-section"><div class="drawer-section-title">Course status request</div><p>Reception submits for admin approval. Existing attendance and bookings are preserved.</p><label class="label" for="change-status">New status</label><select id="change-status" class="select"><option value="Completed">Completed course</option><option value="Discontinued">Discontinued</option><option value="Inactive">Other reason (Inactive)</option></select><label class="label" for="change-reason">Reason</label><textarea id="change-reason" class="input" maxlength="1000" placeholder="Enter a reason"></textarea><button type="button" class="btn btn-primary" id="change-submit" onclick="submitDrawerStatus()">${user.role==='admin'?'Apply status change':'Submit for admin approval'}</button><p id="change-feedback" role="status"></p><a href="reports.html?report=statusrequests">View approval requests</a></div>`;
+    }
+    async function submitDrawerStatus(){
+      if(drawerStatusBusy||!editingStudent)return;
+      const id=editingStudent.StudentID,status=document.getElementById('change-status').value,reason=document.getElementById('change-reason').value.trim(),feedback=document.getElementById('change-feedback');
+      if(reason.length<3){feedback.textContent='Please enter a reason.';return;}
+      const signature=JSON.stringify([id,status,reason]);if(drawerStatusOperation?.signature!==signature)drawerStatusOperation={signature,id:crypto.randomUUID()};
+      drawerStatusBusy=true;document.getElementById('change-submit').disabled=true;document.getElementById('drawer-save-btn').disabled=true;feedback.textContent='Saving status request…';
+      try{const result=await apiCall(user.role==='admin'?'studentStatusDirect':'studentStatusSubmit',{StudentIDs:[id],Status:status,Reason:reason,operationId:drawerStatusOperation.id});if(!result?.success)throw Error(result?.error||'Status request failed');
+        if(user.role==='admin'){editingStudent.Status=status;document.getElementById('ed-status').value=status;feedback.textContent='Status changed and recorded in approval history.';applyFilters();}else feedback.textContent='Submitted. Student remains active until admin approves.';
+        document.getElementById('change-status').disabled=true;document.getElementById('change-reason').disabled=true;drawerStatusOperation=null;
+      }catch(e){feedback.textContent=e.message;document.getElementById('change-submit').disabled=false;}finally{drawerStatusBusy=false;document.getElementById('drawer-save-btn').disabled=false;}
+    }
+
     async function saveStudent() {
       if (!editingStudent) return;
       
@@ -733,8 +754,7 @@
         Address: document.getElementById('ed-address').value.trim(),
         Course: document.getElementById('ed-course').value.trim(),
         BranchID: document.getElementById('ed-branch').value,
-        FeeStatus: document.getElementById('ed-fee').value,
-        Status: document.getElementById('ed-status').value
+        FeeStatus: document.getElementById('ed-fee').value
       };
       
       const result = await apiCall('updateStudent', updates);
@@ -806,3 +826,4 @@
   </script>
 </body>
 </html>
+
