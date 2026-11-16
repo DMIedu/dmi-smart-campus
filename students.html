@@ -734,7 +734,7 @@
       const signature=JSON.stringify([id,status,reason]);if(drawerStatusOperation?.signature!==signature)drawerStatusOperation={signature,id:crypto.randomUUID()};
       drawerStatusBusy=true;document.getElementById('change-submit').disabled=true;document.getElementById('drawer-save-btn').disabled=true;feedback.textContent='Saving status request…';
       try{const result=await apiCall(user.role==='admin'?'studentStatusDirect':'studentStatusSubmit',{StudentIDs:[id],Status:status,Reason:reason,operationId:drawerStatusOperation.id});if(!result?.success)throw Error(result?.error||'Status request failed');
-        if(user.role==='admin'){editingStudent.Status=status;document.getElementById('ed-status').value=status;feedback.textContent='Status changed and recorded in approval history.';applyFilters();}else feedback.textContent='Submitted. Student remains active until admin approves.';
+        if(user.role==='admin'){editingStudent.Status=status;const saved=allStudents.find(s=>String(s.StudentID)===String(id));if(saved)saved.Status=status;document.getElementById('ed-status').value=status;feedback.textContent='Status changed and recorded in approval history.';applyFilters();}else feedback.textContent='Submitted. Student remains active until admin approves.';
         document.getElementById('change-status').disabled=true;document.getElementById('change-reason').disabled=true;drawerStatusOperation=null;
       }catch(e){feedback.textContent=e.message;document.getElementById('change-submit').disabled=false;}finally{drawerStatusBusy=false;document.getElementById('drawer-save-btn').disabled=false;}
     }
